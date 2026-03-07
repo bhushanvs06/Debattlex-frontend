@@ -2,7 +2,7 @@ import React, { useEffect, useState, useRef, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import io from "socket.io-client";
 
-const url = "http://localhost:5001";
+const url = "https://main.d32y54vxirgete.amplifyapp.com/video-call"; 
 const socket = io(url, { autoConnect: false });
 
 function addRipple(e) {
