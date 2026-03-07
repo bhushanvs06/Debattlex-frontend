@@ -181,7 +181,7 @@ const Arina = () => {
 
       try {
         const ai_stance = userStance === 'proposition' ? 'opposition' : 'proposition';
-        const aiRes = await axios.post(url + 'api/ask', {
+        const aiRes = await axios.post(url + '/api/ask', {
           question: text,
           topic: debateTopic,
           stance: ai_stance,
