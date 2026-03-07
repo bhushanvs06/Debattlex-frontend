@@ -1,0 +1,868 @@
+/* ═══════════════════════════════════════════════════════════
+   DEBATTLEX — ARENA TRIBUNAL THEME
+   All selectors scoped to .main-box | keyframes prefixed lb-
+   ═══════════════════════════════════════════════════════════ */
+
+@import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700;900&family=EB+Garamond:ital,wght@0,400;0,500;1,400;1,500&display=swap');
+
+/* ─────────────────────────────────────────────
+   KEYFRAMES  (lb- prefix — no global bleed)
+───────────────────────────────────────────── */
+@keyframes lb-nebula {
+  0%   { opacity: 0.7; transform: scale(1); }
+  100% { opacity: 1;   transform: scale(1.06); }
+}
+@keyframes lb-orbs {
+  0%   { transform: translate(0, 0); }
+  100% { transform: translate(24px, -18px); }
+}
+@keyframes lb-entry {
+  from { opacity: 0; transform: translateY(20px) scale(0.97); }
+  to   { opacity: 1; transform: translateY(0)    scale(1); }
+}
+@keyframes lb-titlePulse {
+  0%   { filter: drop-shadow(0 0 12px rgba(196, 148, 255, 0.5)); }
+  100% { filter: drop-shadow(0 0 28px rgba(232, 121, 249, 0.75)); }
+}
+@keyframes lb-cardIn {
+  from { opacity: 0; transform: translateY(28px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes lb-glow-pulse {
+  0%, 100% { opacity: 0; }
+  50%       { opacity: 1; }
+}
+@keyframes lb-shimmer {
+  0%   { left: -70%; }
+  100% { left: 130%; }
+}
+@keyframes lb-loadDot {
+  0%, 100% { opacity: 0.4; }
+  50%       { opacity: 1; }
+}
+@keyframes lb-selected-ring {
+  0%   { box-shadow: 0 0 0 2px currentColor, 0 0 12px currentColor; }
+  100% { box-shadow: 0 0 0 3px currentColor, 0 0 28px currentColor; }
+}
+@keyframes lb-float {
+  0%, 100% { transform: translateY(0); }
+  50%       { transform: translateY(-6px); }
+}
+@keyframes lb-prop-glow {
+  0%   { box-shadow: 0 0 20px rgba(251, 191, 36, 0.15), inset 0 0 30px rgba(251, 191, 36, 0.04); }
+  100% { box-shadow: 0 0 40px rgba(251, 191, 36, 0.28), inset 0 0 50px rgba(251, 191, 36, 0.08); }
+}
+@keyframes lb-opp-glow {
+  0%   { box-shadow: 0 0 20px rgba(148, 163, 184, 0.15), inset 0 0 30px rgba(148, 163, 184, 0.04); }
+  100% { box-shadow: 0 0 40px rgba(148, 163, 184, 0.28), inset 0 0 50px rgba(148, 163, 184, 0.08); }
+}
+
+/* ─────────────────────────────────────────────
+   MAIN CONTAINER
+───────────────────────────────────────────── */
+.main-box {
+  position: relative;
+  min-height: 100vh;
+  background: #060010;
+  overflow: hidden;
+  font-family: 'EB Garamond', 'Georgia', serif;
+  color: #d4c8e8;
+  padding: 4% 5%;
+}
+
+/* Nebula bg */
+.main-box::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background:
+    radial-gradient(ellipse 70% 55% at 15% 15%, rgba(76, 29, 149, 0.22) 0%, transparent 65%),
+    radial-gradient(ellipse 55% 65% at 85% 85%, rgba(180, 90, 240, 0.10) 0%, transparent 65%),
+    radial-gradient(ellipse 45% 45% at 55% 45%, rgba(20, 0, 50, 0.9) 0%, #060010 100%);
+  z-index: 0;
+  pointer-events: none;
+  animation: lb-nebula 16s ease-in-out infinite alternate;
+}
+
+/* Orb layer */
+.main-box::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background:
+    radial-gradient(circle 220px at 10% 75%, rgba(139, 92, 246, 0.10) 0%, transparent 75%),
+    radial-gradient(circle 160px at 88% 18%, rgba(217, 119, 250, 0.08) 0%, transparent 70%),
+    radial-gradient(circle 120px at 65% 92%, rgba(76, 29, 149, 0.12) 0%, transparent 70%);
+  z-index: 0;
+  pointer-events: none;
+  animation: lb-orbs 14s ease-in-out infinite alternate-reverse;
+}
+
+.main-box > * {
+  position: relative;
+  z-index: 1;
+}
+
+/* ─────────────────────────────────────────────
+   STEP TYPOGRAPHY
+───────────────────────────────────────────── */
+.main-box .lb-step-title {
+  font-family: 'Cinzel', 'Georgia', serif;
+  font-size: 1.75em;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: transparent;
+  background: linear-gradient(130deg, #c4b5fd 0%, #e879f9 45%, #fde68a 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  margin: 0 0 0.3em 0;
+  animation: lb-titlePulse 3.5s ease-in-out infinite alternate;
+  filter: drop-shadow(0 0 14px rgba(196, 181, 253, 0.5));
+}
+
+.main-box .lb-step-sub {
+  font-family: 'EB Garamond', serif;
+  font-size: 1.05em;
+  font-style: italic;
+  color: #8b7aaa;
+  margin: 0 0 2em 0;
+  letter-spacing: 0.02em;
+}
+
+/* ─────────────────────────────────────────────
+   HIDDEN RADIO (reused across all steps)
+───────────────────────────────────────────── */
+.main-box .lb-hidden-radio {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+  width: 0;
+  height: 0;
+}
+
+/* ─────────────────────────────────────────────
+   CARD GLOW LAYER
+───────────────────────────────────────────── */
+.main-box .lb-card-glow {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  opacity: 0;
+  transition: opacity 0.4s ease;
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* ─────────────────────────────────────────────
+   STEP 1 — LEVEL CARDS
+───────────────────────────────────────────── */
+.main-box .lb-level-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 20px;
+  margin-top: 4px;
+  animation: lb-entry 0.5s ease both;
+}
+
+.main-box .lb-level-card {
+  position: relative;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(139, 92, 246, 0.2);
+  border-radius: 18px;
+  padding: 28px 20px 24px;
+  cursor: pointer;
+  text-align: center;
+  transition: transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1), border-color 0.3s ease, background 0.3s ease;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  font-family: inherit;
+  animation: lb-cardIn 0.5s ease both;
+}
+
+.main-box .lb-level-card:nth-child(2) { animation-delay: 0.08s; }
+.main-box .lb-level-card:nth-child(3) { animation-delay: 0.16s; }
+
+.main-box .lb-level-card:hover {
+  transform: translateY(-6px) scale(1.02);
+  border-color: rgba(139, 92, 246, 0.55);
+  background: rgba(139, 92, 246, 0.07);
+}
+
+.main-box .lb-level-card:hover .lb-card-glow {
+  opacity: 1;
+  background: radial-gradient(circle at 50% 0%, rgba(139, 92, 246, 0.12) 0%, transparent 70%);
+}
+
+.main-box .lb-level-card--active {
+  border-color: rgba(196, 181, 253, 0.7) !important;
+  background: rgba(139, 92, 246, 0.12) !important;
+  box-shadow: 0 0 0 1px rgba(196, 181, 253, 0.3), 0 8px 40px rgba(109, 40, 217, 0.35);
+  transform: translateY(-4px) scale(1.02);
+}
+
+.main-box .lb-level-icon {
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 14px;
+  animation: lb-float 3s ease-in-out infinite;
+}
+
+.main-box .lb-level-icon--beginner  { background: rgba(52, 211, 153, 0.12); color: #6ee7b7; border: 1px solid rgba(52, 211, 153, 0.3); animation-delay: 0s; }
+.main-box .lb-level-icon--intermediate { background: rgba(251, 146, 60, 0.12); color: #fdba74; border: 1px solid rgba(251, 146, 60, 0.3); animation-delay: 0.5s; }
+.main-box .lb-level-icon--advanced  { background: rgba(196, 181, 253, 0.12); color: #c4b5fd; border: 1px solid rgba(196, 181, 253, 0.3); animation-delay: 1s; }
+
+.main-box .lb-level-icon svg { width: 100%; height: 100%; }
+
+.main-box .lb-level-badge {
+  font-family: 'Cinzel', serif;
+  font-size: 0.62em;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #7c6fa0;
+  background: rgba(139, 92, 246, 0.1);
+  border: 1px solid rgba(139, 92, 246, 0.2);
+  padding: 3px 10px;
+  border-radius: 20px;
+}
+
+.main-box .lb-level-name {
+  font-family: 'Cinzel', serif;
+  font-size: 1.1em;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: #e2d9f3;
+}
+
+.main-box .lb-level-desc {
+  font-size: 0.88em;
+  color: #7c6fa0;
+  font-style: italic;
+  line-height: 1.5;
+  margin: 0;
+}
+
+.main-box .lb-level-check {
+  font-family: 'Cinzel', serif;
+  font-size: 0.68em;
+  letter-spacing: 0.1em;
+  color: #c4b5fd;
+  background: rgba(139, 92, 246, 0.2);
+  border: 1px solid rgba(196, 181, 253, 0.4);
+  padding: 4px 12px;
+  border-radius: 20px;
+  animation: lb-entry 0.3s ease both;
+}
+
+/* ─────────────────────────────────────────────
+   STEP 2 — TOPIC
+───────────────────────────────────────────── */
+.main-box .lb-topic-layout {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+  align-items: start;
+  animation: lb-entry 0.4s ease both;
+}
+
+.main-box .lb-topic-input-col {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.main-box .lb-input-label {
+  font-family: 'Cinzel', serif;
+  font-size: 0.7em;
+  letter-spacing: 0.12em;
+  color: #7c6fa0;
+  text-transform: uppercase;
+}
+
+.main-box .lb-text-input {
+  width: 100%;
+  padding: 14px 18px;
+  font-size: 1em;
+  font-family: 'EB Garamond', serif;
+  border-radius: 12px;
+  border: 1px solid rgba(139, 92, 246, 0.25);
+  background: rgba(6, 0, 16, 0.7);
+  color: #f0e8ff;
+  outline: none;
+  transition: all 0.3s ease;
+  letter-spacing: 0.02em;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+
+.main-box .lb-text-input::placeholder { color: #4d3d6b; font-style: italic; }
+
+.main-box .lb-text-input:focus {
+  border-color: #9f5ff5;
+  background: rgba(14, 0, 32, 0.85);
+  box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.18), 0 0 24px rgba(159, 95, 245, 0.2);
+}
+
+.main-box .lb-ai-btn {
+  position: relative;
+  overflow: hidden;
+  padding: 13px 22px;
+  font-family: 'Cinzel', serif;
+  font-size: 0.72em;
+  letter-spacing: 0.1em;
+  font-weight: 700;
+  color: #f5d0fe;
+  background: linear-gradient(135deg, #4c1d95 0%, #7c3aed 50%, #9f5ff5 100%);
+  border: none;
+  border-radius: 10px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+  box-shadow: 0 4px 20px rgba(76, 29, 149, 0.5), 0 0 0 1px rgba(159, 95, 245, 0.3);
+}
+
+.main-box .lb-ai-btn-shimmer {
+  position: absolute;
+  top: -50%;
+  left: -70%;
+  width: 45%;
+  height: 200%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.22), transparent);
+  transform: skewX(-20deg);
+  animation: lb-shimmer 2.8s ease-in-out infinite;
+}
+
+.main-box .lb-ai-btn-icon { font-size: 1.1em; position: relative; z-index: 1; }
+.main-box .lb-ai-btn span:last-child { position: relative; z-index: 1; }
+
+.main-box .lb-ai-btn:hover {
+  transform: translateY(-2px) scale(1.03);
+  box-shadow: 0 8px 30px rgba(76, 29, 149, 0.65), 0 0 0 1px rgba(196, 181, 253, 0.45);
+}
+
+.main-box .lb-ai-btn:active { transform: scale(0.97); }
+.main-box .lb-ai-btn:disabled { opacity: 0.55; cursor: not-allowed; transform: none !important; }
+
+.main-box .lb-topic-display {
+  position: relative;
+  min-height: 150px;
+  background: rgba(255, 255, 255, 0.025);
+  border: 1px solid rgba(139, 92, 246, 0.22);
+  border-radius: 16px;
+  padding: 24px 22px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.main-box .lb-topic-display-label {
+  font-family: 'Cinzel', serif;
+  font-size: 0.62em;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: #9f5ff5;
+  border-bottom: 1px solid rgba(139, 92, 246, 0.2);
+  padding-bottom: 8px;
+}
+
+.main-box .lb-topic-display-text {
+  font-size: 1.05em;
+  font-style: italic;
+  color: #f0e8ff;
+  line-height: 1.6;
+  margin: 0;
+  animation: lb-entry 0.4s ease both;
+}
+
+.main-box .lb-topic-display-empty {
+  font-size: 0.9em;
+  font-style: italic;
+  color: #3d2b5e;
+  margin: 0;
+}
+
+.main-box .lb-topic-display-orb {
+  position: absolute;
+  bottom: -30px;
+  right: -30px;
+  width: 120px;
+  height: 120px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(139, 92, 246, 0.15) 0%, transparent 70%);
+  pointer-events: none;
+  animation: lb-glow-pulse 3s ease-in-out infinite;
+}
+
+/* ─────────────────────────────────────────────
+   STEP 3 — FORMAT (1v1 / 3v3)
+───────────────────────────────────────────── */
+.main-box .lb-format-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+  animation: lb-entry 0.4s ease both;
+}
+
+.main-box .lb-format-card {
+  position: relative;
+  background: rgba(255, 255, 255, 0.025);
+  border: 1px solid rgba(139, 92, 246, 0.2);
+  border-radius: 18px;
+  padding: 24px 20px 20px;
+  cursor: pointer;
+  overflow: hidden;
+  transition: transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1), border-color 0.3s ease, background 0.3s ease;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  animation: lb-cardIn 0.45s ease both;
+}
+
+.main-box .lb-format-card:nth-child(2) { animation-delay: 0.1s; }
+
+.main-box .lb-format-card:hover {
+  transform: translateY(-5px) scale(1.015);
+  border-color: rgba(139, 92, 246, 0.5);
+  background: rgba(139, 92, 246, 0.06);
+}
+
+.main-box .lb-format-card:hover .lb-card-glow {
+  opacity: 1;
+  background: radial-gradient(circle at 50% 20%, rgba(139, 92, 246, 0.1) 0%, transparent 65%);
+}
+
+.main-box .lb-format-card--active {
+  border-color: rgba(196, 181, 253, 0.6) !important;
+  background: rgba(109, 40, 217, 0.1) !important;
+  box-shadow: 0 0 0 1px rgba(196, 181, 253, 0.25), 0 10px 40px rgba(109, 40, 217, 0.3);
+}
+
+.main-box .lb-format-arena {
+  background: rgba(6, 0, 16, 0.6);
+  border: 1px solid rgba(139, 92, 246, 0.15);
+  border-radius: 12px;
+  padding: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.main-box .lb-arena-svg {
+  width: 100%;
+  height: auto;
+  max-height: 120px;
+}
+
+.main-box .lb-format-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.main-box .lb-format-name {
+  font-family: 'Cinzel', serif;
+  font-size: 1.3em;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: #e2d9f3;
+}
+
+.main-box .lb-format-desc {
+  font-size: 0.88em;
+  font-style: italic;
+  color: #6b5a88;
+  line-height: 1.4;
+}
+
+.main-box .lb-format-selected-ring {
+  position: absolute;
+  inset: 0;
+  border-radius: 18px;
+  border: 2px solid rgba(196, 181, 253, 0.5);
+  pointer-events: none;
+  animation: lb-selected-ring 1.8s ease-in-out infinite alternate;
+}
+
+/* ─────────────────────────────────────────────
+   STEP 4 — STANCE CARDS
+───────────────────────────────────────────── */
+.main-box .lb-stance-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+  animation: lb-entry 0.4s ease both;
+}
+
+.main-box .lb-stance-card {
+  position: relative;
+  border-radius: 20px;
+  padding: 30px 24px 26px;
+  cursor: pointer;
+  overflow: hidden;
+  transition: transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  animation: lb-cardIn 0.5s ease both;
+}
+
+.main-box .lb-stance-card:nth-child(2) { animation-delay: 0.1s; }
+
+/* Proposition — amber/gold */
+.main-box .lb-stance-card--prop {
+  background: linear-gradient(160deg, rgba(120, 53, 15, 0.12) 0%, rgba(6, 0, 16, 0.7) 60%);
+  border: 1px solid rgba(251, 191, 36, 0.18);
+}
+
+.main-box .lb-stance-card--prop:hover {
+  transform: translateY(-6px) scale(1.015);
+  animation: lb-prop-glow 2s ease-in-out infinite alternate;
+  border-color: rgba(251, 191, 36, 0.45);
+}
+
+.main-box .lb-stance-card--prop.lb-stance-card--active {
+  border-color: rgba(251, 191, 36, 0.65) !important;
+  background: linear-gradient(160deg, rgba(120, 53, 15, 0.22) 0%, rgba(6, 0, 16, 0.8) 70%) !important;
+  box-shadow: 0 0 0 1px rgba(251, 191, 36, 0.3), 0 12px 50px rgba(180, 120, 0, 0.25) !important;
+}
+
+/* Opposition — silver/steel-blue */
+.main-box .lb-stance-card--opp {
+  background: linear-gradient(160deg, rgba(30, 58, 100, 0.14) 0%, rgba(6, 0, 16, 0.7) 60%);
+  border: 1px solid rgba(148, 163, 184, 0.18);
+}
+
+.main-box .lb-stance-card--opp:hover {
+  transform: translateY(-6px) scale(1.015);
+  animation: lb-opp-glow 2s ease-in-out infinite alternate;
+  border-color: rgba(148, 163, 184, 0.42);
+}
+
+.main-box .lb-stance-card--opp.lb-stance-card--active {
+  border-color: rgba(148, 163, 184, 0.6) !important;
+  background: linear-gradient(160deg, rgba(30, 58, 100, 0.22) 0%, rgba(6, 0, 16, 0.8) 70%) !important;
+  box-shadow: 0 0 0 1px rgba(148, 163, 184, 0.28), 0 12px 50px rgba(71, 85, 105, 0.3) !important;
+}
+
+/* Emblems */
+.main-box .lb-stance-emblem {
+  width: 90px;
+  height: 90px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 12px;
+  align-self: center;
+  animation: lb-float 4s ease-in-out infinite;
+}
+
+.main-box .lb-stance-emblem--prop {
+  background: rgba(251, 191, 36, 0.1);
+  border: 1px solid rgba(251, 191, 36, 0.3);
+  color: #fbbf24;
+  box-shadow: 0 0 30px rgba(251, 191, 36, 0.12);
+}
+
+.main-box .lb-stance-emblem--opp {
+  background: rgba(148, 163, 184, 0.1);
+  border: 1px solid rgba(148, 163, 184, 0.3);
+  color: #94a3b8;
+  box-shadow: 0 0 30px rgba(148, 163, 184, 0.1);
+  animation-delay: 0.7s;
+}
+
+.main-box .lb-stance-emblem svg { width: 100%; height: 100%; }
+
+/* Stance content */
+.main-box .lb-stance-content {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  z-index: 1;
+}
+
+.main-box .lb-stance-name {
+  font-family: 'Cinzel', serif;
+  font-size: 1.3em;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+}
+
+.main-box .lb-stance-card--prop .lb-stance-name { color: #fde68a; }
+.main-box .lb-stance-card--opp .lb-stance-name  { color: #e2e8f0; }
+
+.main-box .lb-stance-latin {
+  font-family: 'EB Garamond', serif;
+  font-size: 0.82em;
+  font-style: italic;
+  letter-spacing: 0.06em;
+}
+
+.main-box .lb-stance-card--prop .lb-stance-latin { color: rgba(251, 191, 36, 0.55); }
+.main-box .lb-stance-card--opp .lb-stance-latin  { color: rgba(148, 163, 184, 0.55); }
+
+.main-box .lb-stance-desc {
+  font-size: 0.92em;
+  font-style: italic;
+  color: #8b7aaa;
+  line-height: 1.55;
+  margin: 0;
+}
+
+.main-box .lb-stance-traits {
+  list-style: none;
+  padding: 0;
+  margin: 4px 0 0 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.main-box .lb-stance-traits li {
+  font-size: 0.82em;
+  letter-spacing: 0.03em;
+  padding-left: 14px;
+  position: relative;
+}
+
+.main-box .lb-stance-traits li::before {
+  content: '›';
+  position: absolute;
+  left: 0;
+  font-size: 1em;
+}
+
+.main-box .lb-stance-card--prop .lb-stance-traits li { color: rgba(253, 230, 138, 0.7); }
+.main-box .lb-stance-card--prop .lb-stance-traits li::before { color: #fbbf24; }
+.main-box .lb-stance-card--opp .lb-stance-traits li  { color: rgba(226, 232, 240, 0.6); }
+.main-box .lb-stance-card--opp .lb-stance-traits li::before  { color: #94a3b8; }
+
+.main-box .lb-stance-selected {
+  align-self: flex-start;
+  font-family: 'Cinzel', serif;
+  font-size: 0.62em;
+  letter-spacing: 0.14em;
+  padding: 4px 12px;
+  border-radius: 20px;
+  animation: lb-entry 0.3s ease both;
+  z-index: 1;
+}
+
+.main-box .lb-stance-card--prop .lb-stance-selected {
+  background: rgba(251, 191, 36, 0.15);
+  border: 1px solid rgba(251, 191, 36, 0.4);
+  color: #fbbf24;
+}
+
+.main-box .lb-stance-card--opp .lb-stance-selected {
+  background: rgba(148, 163, 184, 0.12);
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  color: #cbd5e1;
+}
+
+/* ─────────────────────────────────────────────
+   STEP 5 — ROLE CARDS
+───────────────────────────────────────────── */
+.main-box .lb-role-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 18px;
+  animation: lb-entry 0.4s ease both;
+}
+
+.main-box .lb-role-card {
+  position: relative;
+  border-radius: 16px;
+  padding: 22px 16px 20px;
+  cursor: pointer;
+  overflow: hidden;
+  transition: transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1), border-color 0.3s ease;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 7px;
+  animation: lb-cardIn 0.5s ease both;
+}
+
+.main-box .lb-role-card:nth-child(2) { animation-delay: 0.08s; }
+.main-box .lb-role-card:nth-child(3) { animation-delay: 0.16s; }
+
+.main-box .lb-role-card--gold {
+  background: linear-gradient(160deg, rgba(120, 53, 15, 0.1) 0%, rgba(6, 0, 16, 0.65) 80%);
+  border: 1px solid rgba(251, 191, 36, 0.18);
+}
+
+.main-box .lb-role-card--silver {
+  background: linear-gradient(160deg, rgba(30, 58, 100, 0.1) 0%, rgba(6, 0, 16, 0.65) 80%);
+  border: 1px solid rgba(148, 163, 184, 0.18);
+}
+
+.main-box .lb-role-card--gold:hover {
+  transform: translateY(-5px) scale(1.02);
+  border-color: rgba(251, 191, 36, 0.42);
+  box-shadow: 0 8px 32px rgba(180, 120, 0, 0.2);
+}
+
+.main-box .lb-role-card--silver:hover {
+  transform: translateY(-5px) scale(1.02);
+  border-color: rgba(148, 163, 184, 0.4);
+  box-shadow: 0 8px 32px rgba(71, 85, 105, 0.2);
+}
+
+.main-box .lb-role-card--gold.lb-role-card--active {
+  border-color: rgba(251, 191, 36, 0.65) !important;
+  background: linear-gradient(160deg, rgba(120, 53, 15, 0.2) 0%, rgba(6, 0, 16, 0.75) 80%) !important;
+  box-shadow: 0 0 0 1px rgba(251, 191, 36, 0.3), 0 10px 40px rgba(180, 120, 0, 0.25);
+}
+
+.main-box .lb-role-card--silver.lb-role-card--active {
+  border-color: rgba(148, 163, 184, 0.6) !important;
+  background: linear-gradient(160deg, rgba(30, 58, 100, 0.2) 0%, rgba(6, 0, 16, 0.75) 80%) !important;
+  box-shadow: 0 0 0 1px rgba(148, 163, 184, 0.28), 0 10px 40px rgba(71, 85, 105, 0.28);
+}
+
+.main-box .lb-role-abbr {
+  font-family: 'Cinzel', serif;
+  font-size: 1.6em;
+  font-weight: 900;
+  letter-spacing: 0.05em;
+  line-height: 1;
+}
+
+.main-box .lb-role-card--gold .lb-role-abbr  { color: #fbbf24; text-shadow: 0 0 20px rgba(251, 191, 36, 0.4); }
+.main-box .lb-role-card--silver .lb-role-abbr { color: #94a3b8; text-shadow: 0 0 20px rgba(148, 163, 184, 0.35); }
+
+.main-box .lb-role-order {
+  font-family: 'Cinzel', serif;
+  font-size: 0.58em;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  padding: 2px 10px;
+  border-radius: 20px;
+}
+
+.main-box .lb-role-card--gold .lb-role-order  { background: rgba(251, 191, 36, 0.12); color: rgba(251, 191, 36, 0.7); border: 1px solid rgba(251, 191, 36, 0.25); }
+.main-box .lb-role-card--silver .lb-role-order { background: rgba(148, 163, 184, 0.1);  color: rgba(148, 163, 184, 0.7); border: 1px solid rgba(148, 163, 184, 0.22); }
+
+.main-box .lb-role-label {
+  font-family: 'EB Garamond', serif;
+  font-size: 0.95em;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  color: #d4c8e8;
+}
+
+.main-box .lb-role-desc {
+  font-size: 0.8em;
+  font-style: italic;
+  color: #5e4f78;
+  line-height: 1.45;
+  margin: 0;
+}
+
+/* Mini podium visual */
+.main-box .lb-role-podium {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0;
+  margin-top: 4px;
+  opacity: 0.5;
+}
+
+.main-box .lb-role-podium-figure {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.main-box .lb-role-card--gold .lb-role-podium-figure  { background: rgba(251, 191, 36, 0.5); }
+.main-box .lb-role-card--silver .lb-role-podium-figure { background: rgba(148, 163, 184, 0.5); }
+
+.main-box .lb-role-podium-stand {
+  width: 28px;
+  height: 8px;
+  border-radius: 3px 3px 0 0;
+}
+
+.main-box .lb-role-card--gold .lb-role-podium-stand  { background: rgba(251, 191, 36, 0.25); }
+.main-box .lb-role-card--silver .lb-role-podium-stand { background: rgba(148, 163, 184, 0.25); }
+
+.main-box .lb-role-selected {
+  font-family: 'Cinzel', serif;
+  font-size: 0.6em;
+  letter-spacing: 0.12em;
+  padding: 3px 10px;
+  border-radius: 20px;
+  animation: lb-entry 0.3s ease both;
+  z-index: 1;
+}
+
+.main-box .lb-role-card--gold .lb-role-selected  { background: rgba(251,191,36,0.14); border: 1px solid rgba(251,191,36,0.38); color: #fbbf24; }
+.main-box .lb-role-card--silver .lb-role-selected { background: rgba(148,163,184,0.1);  border: 1px solid rgba(148,163,184,0.32); color: #cbd5e1; }
+
+/* ─────────────────────────────────────────────
+   STEPPER NAVIGATION BUTTONS
+───────────────────────────────────────────── */
+.main-box button:not(.lb-level-card):not(.lb-ai-btn) {
+  font-family: 'Cinzel', serif;
+  font-size: 0.72em;
+  letter-spacing: 0.1em;
+  font-weight: 600;
+  padding: 11px 28px;
+  border-radius: 8px;
+  cursor: pointer;
+  position: relative;
+  overflow: hidden;
+  background: transparent;
+  border: 1px solid rgba(139, 92, 246, 0.3);
+  color: #c4b5fd;
+  transition: all 0.3s ease;
+}
+
+.main-box button:not(.lb-level-card):not(.lb-ai-btn):hover {
+  background: rgba(109, 40, 217, 0.15);
+  border-color: #9f5ff5;
+  color: #f0e8ff;
+  box-shadow: 0 0 18px rgba(159, 95, 245, 0.28);
+  transform: translateY(-1px);
+}
+
+/* ─────────────────────────────────────────────
+   FOCUS & ACCESSIBILITY
+───────────────────────────────────────────── */
+.main-box *:focus-visible {
+  outline: 2px solid #9f5ff5;
+  outline-offset: 3px;
+  border-radius: 4px;
+}
+
+/* ─────────────────────────────────────────────
+   RESPONSIVE
+───────────────────────────────────────────── */
+@media (max-width: 900px) {
+  .main-box .lb-level-grid  { grid-template-columns: repeat(3, 1fr); gap: 12px; }
+  .main-box .lb-stance-grid { grid-template-columns: 1fr; }
+  .main-box .lb-format-grid { grid-template-columns: 1fr; }
+  .main-box .lb-role-grid   { grid-template-columns: repeat(3, 1fr); }
+  .main-box .lb-topic-layout { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 600px) {
+  .main-box { padding: 6% 4%; }
+  .main-box .lb-step-title { font-size: 1.35em; }
+  .main-box .lb-level-grid { grid-template-columns: 1fr; }
+  .main-box .lb-role-grid  { grid-template-columns: 1fr; }
+  .main-box .lb-stance-emblem { width: 70px; height: 70px; }
+} 

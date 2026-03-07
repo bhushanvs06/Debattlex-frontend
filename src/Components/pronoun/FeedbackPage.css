@@ -1,0 +1,15 @@
+ @keyframes bob { 0% { transform: translateY(0); } 50% { transform: translateY(-12px); } 100% { transform: translateY(0); } }
+      @keyframes legendBounce { 0% { transform: scale(1) rotate(-8deg); } 100% { transform: scale(1.15) rotate(8deg); } }
+      @keyframes pulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.08); } }
+.card {
+  transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) !important;
+}
+.gallery-grid {
+  padding: 20px;
+}
+@keyframes popIn {
+          0% { opacity: 0; transform: scale(0.6) translateY(30px); }
+          100% { opacity: 1; transform: scale(1) translateY(0); }
+        }
+        @keyframes bob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-15px); } }
+        @keyframes legendBounce { 0% { transform: scale(1) rotate(-8deg); } 100% { transform: scale(1.18) rotate(8deg); } }
