@@ -2,7 +2,7 @@ import React, { useEffect, useState, useRef, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import io from "socket.io-client";
 
-const url = "dddeyksxjhwh4.cloudfront.net/video-call"; 
+const url = "dddeyksxjhwh4.cloudfront.net/video-call/"; 
 const socket = io(url, { autoConnect: false });
 
 function addRipple(e) {
