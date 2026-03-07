@@ -2,8 +2,12 @@ import React, { useEffect, useState, useRef, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import io from "socket.io-client";
 
-const url = "dddeyksxjhwh4.cloudfront.net/video-call/"; 
-const socket = io(url, { autoConnect: false });
+const url = "dddeyksxjhwh4.cloudfront.net/video-call"; 
+const socket = io(url, { 
+  path: "/socket.io",    // Socket.IO endpoint
+  transports: ["websocket"], 
+  autoConnect: false
+});
 
 function addRipple(e) {
   const btn = e.currentTarget;
