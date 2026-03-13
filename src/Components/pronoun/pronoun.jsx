@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import axios from 'axios';
 import YouTube from 'react-youtube';
 
-const url = process.env.REACT_APP_URL || 'http://localhost:5000';
+const url = process.env.REACT_APP_URL || 'https://dddeyksxjhwh4.cloudfront.net';
 
 const contentLibrary = [
   { id: 1, videoId: "Udap-5rVWeM", title: "Why does happiness slip away so easily?", speaker: "Jaya Row", meta: "795K views • Jan 2024", shortDesc: "Uncover the secret to lasting joy.", summary: "Why does happiness slip away so easily? Uncover the secret to lasting joy..." },
