@@ -15,7 +15,7 @@ import {
 } from 'chart.js';
 
 ChartJS.register(BarElement, CategoryScale, LinearScale, Tooltip, Legend);
-const url = process.env.React_App_url;
+const url = process.env.React_App_url || (window.location.hostname === 'localhost' ? 'http://localhost:5000' : 'https://debattlex-server-main.onrender.com');
 
 /* ─────────────────────────────────────────────
    HIGH-PERFORMANCE TECH DELIBERATION LOADER

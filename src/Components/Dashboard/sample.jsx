@@ -15,7 +15,7 @@ export default function Dashboard() {
     }
 
     axios
-      .post("http://localhost:5000/api/fetchEntries", { email })
+      .post("https://debattlex-server-main.onrender.com/api/fetchEntries", { email })
       .then((res) => setUserData(res.data.entries))
       .catch((err) => console.error("Error fetching entries:", err));
   }, [email, navigate]);

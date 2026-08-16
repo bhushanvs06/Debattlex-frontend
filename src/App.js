@@ -46,7 +46,7 @@ const originalFetch = window.fetch;
 window.fetch = async (...args) => {
   let [resource, config] = args;
   const url = typeof resource === 'string' ? resource : resource?.url || '';
-  const isOwnBackend = url.startsWith(process.env.React_App_url || 'http://localhost:5000');
+  const isOwnBackend = url.startsWith(process.env.React_App_url || (window.location.hostname === 'localhost' ? 'http://localhost:5000' : 'https://debattlex-server-main.onrender.com'));
   const token = localStorage.getItem('token');
   if (token && isOwnBackend) {
     config = config || {};

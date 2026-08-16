@@ -8,7 +8,7 @@ function Api() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      const res = await axios.post('http://localhost:5000/ask', { question });
+      const res = await axios.post('https://debattlex-server-main.onrender.com/ask', { question });
       setAnswer(res.data.answer);
     } catch (err) {
       setAnswer('Error: Could not get response from server');

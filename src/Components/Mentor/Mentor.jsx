@@ -4,7 +4,7 @@ import './Mentor.css';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 
-const url = process.env.React_App_url;
+const url = process.env.React_App_url || (window.location.hostname === 'localhost' ? 'http://localhost:5000' : 'https://debattlex-server-main.onrender.com');
 
 const Mentor = () => {
   const [email, setEmail] = useState('');

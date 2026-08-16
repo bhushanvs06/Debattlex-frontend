@@ -4,8 +4,8 @@ import io from "socket.io-client";
 
 const isMobile = () => window.matchMedia('(pointer: coarse)').matches;
 
-// NEW – correct production URL
-const socket = io("http://localhost:5001", {
+const socketURL = process.env.REACT_APP_API_URL || (window.location.hostname === 'localhost' ? 'http://localhost:5000' : 'https://debattlex-server-main.onrender.com');
+const socket = io(socketURL, {
   path: "/socket.io",
   transports: ["websocket"],
   autoConnect: false
