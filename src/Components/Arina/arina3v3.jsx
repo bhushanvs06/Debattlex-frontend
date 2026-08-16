@@ -3,7 +3,7 @@ import { Mic, MicOff, PhoneOff, Notebook, Home, FileText, MessageSquare } from '
 import './Arina.css';
 import { useNavigate } from 'react-router-dom';
 
-var url = process.env.React_App_url;
+var url = process.env.React_App_url || (window.location.hostname === 'localhost' ? 'http://localhost:5000' : 'https://debattlex-server-main.onrender.com');
 
 const toBoldItalic = (word) => {
   const map = {
@@ -472,8 +472,8 @@ const DebateUI = () => {
   }, [currentSpeakerIndex, isUserTurn, debateStarted, isThinking, isSpeaking]);
 
   useEffect(() => {
-    if (!('webkitSpeechRecognition' in window)) return;
-    const SpeechRecognition = window.webkitSpeechRecognition;
+    if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) return;
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     const recognition = new SpeechRecognition();
     recognition.continuous = true;
     recognition.interimResults = true;
@@ -508,8 +508,23 @@ const DebateUI = () => {
       };
 
       recognition.onerror = (err) => {
-        console.error("Speech recognition error:", err);
-        recognition.stop();
+        if (err.error === 'no-speech') return; // ignore, will auto-restart via onend
+        console.warn("Speech recognition error:", err.error);
+        // On network error, wait briefly and restart rather than stopping completely
+        if (err.error === 'network') {
+          setTimeout(() => {
+            if (isUserTurn && debateStarted && recognitionRef.current === recognition) {
+              try { recognition.start(); } catch (_) {}
+            }
+          }, 1000);
+        }
+      };
+
+      recognition.onend = () => {
+        // Auto-restart during user's turn so voice input is continuous
+        if (isUserTurn && debateStarted && recognitionRef.current === recognition) {
+          try { recognition.start(); } catch (_) {}
+        }
       };
     } else {
       recognition.stop();

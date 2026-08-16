@@ -4,7 +4,7 @@ import './Arina.css';
 import { useNavigate } from 'react-router-dom' ;
 import axios from 'axios';
 
-var url = process.env.React_App_url;
+var url = process.env.React_App_url || (window.location.hostname === 'localhost' ? 'http://localhost:5000' : 'https://debattlex-server-main.onrender.com');
 
 const toBoldItalic = (word) => {
   const map = {
@@ -431,7 +431,18 @@ const Arina = () => {
       }
       setUserCaption((finalAccum + interim).trim());
     };
-    rec.onerror = (e) => { if (e.error !== 'no-speech') console.warn('SR error:', e.error); };
+    rec.onerror = (e) => {
+      if (e.error === 'no-speech') return; // ignore — will auto-restart
+      console.warn('SR error:', e.error);
+      // For network errors, try restarting after a short delay
+      if (e.error === 'network') {
+        setTimeout(() => {
+          if (!isMuted && recognitionRef.current === rec) {
+            try { rec.start(); } catch (_) {}
+          }
+        }, 1000);
+      }
+    };
     rec.onend = () => {
       // Auto-restart if still unmuted (handles browser auto-stop)
       if (!isMuted && recognitionRef.current === rec) {
