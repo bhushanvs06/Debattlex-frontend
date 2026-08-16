@@ -78,42 +78,62 @@ const FeedbackPage = () => {
   const [error, setError] = useState(null);
 
   useEffect(() => {
+    const email = localStorage.getItem("userEmail");
+    if (!email) { setError("No user email found"); return; }
+    const cacheKey = `debattlex_entries_${email}`;
+
+    const processEntries = (entriesObj) => {
+      const entriesArray = Object.entries(entriesObj).map(([key, entry]) => {
+        const stance = entry.stance?.toLowerCase() || "proposition";
+        const userRoleLower = entry.userrole?.toLowerCase() || "";
+        const userTeamData = entry[stance]?.[userRoleLower] || {};
+
+        return {
+          key,
+          topic: entry.topic || "Untitled Debate",
+          stance: entry.stance || "Not specified",
+          userrole: entry.userrole || "Not specified",
+          winner: entry.winner || "Not determined",
+          reason: entry.reason || "",
+          userScore: entry.aifeedback?.overall || 0,
+          userFeedback: entry.aifeedback || {},
+          // ── exact same logic as before ──
+          userSummary: Array.isArray(userTeamData.summary)
+            ? userTeamData.summary.join("\n")
+            : userTeamData.summary || "",
+          userTranscript: Array.isArray(userTeamData.transcript)
+            ? userTeamData.transcript.join(" ")
+            : userTeamData.transcript || "",
+        };
+      });
+
+      setEntries(entriesArray.reverse());
+      setError(null);
+    };
+
+    // 1. Try to load from cache first
+    const cached = localStorage.getItem(cacheKey);
+    if (cached) {
+      try {
+        const parsed = JSON.parse(cached);
+        processEntries(parsed.entries || {});
+      } catch (e) {
+        console.error("Error reading feedback cache:", e);
+      }
+    }
+
+    // 2. Fetch fresh data from server
     const fetchEntries = async () => {
       try {
-        const email = localStorage.getItem("userEmail");
-        if (!email) { setError("No user email found"); return; }
         const res = await axios.post(`${url}/api/fetchEntries`, { email });
-        const rawEntries = res.data.entries || {};
-
-        const entriesArray = Object.entries(rawEntries).map(([key, entry]) => {
-          const stance = entry.stance?.toLowerCase() || "proposition";
-          const userRoleLower = entry.userrole?.toLowerCase() || "";
-          const userTeamData = entry[stance]?.[userRoleLower] || {};
-
-          return {
-            key,
-            topic: entry.topic || "Untitled Debate",
-            stance: entry.stance || "Not specified",
-            userrole: entry.userrole || "Not specified",
-            winner: entry.winner || "Not determined",
-            reason: entry.reason || "",
-            userScore: entry.aifeedback?.overall || 0,
-            userFeedback: entry.aifeedback || {},
-            // ── exact same logic as before ──
-            userSummary: Array.isArray(userTeamData.summary)
-              ? userTeamData.summary.join("\n")
-              : userTeamData.summary || "",
-            userTranscript: Array.isArray(userTeamData.transcript)
-              ? userTeamData.transcript.join(" ")
-              : userTeamData.transcript || "",
-          };
-        });
-
-        setEntries(entriesArray.reverse());
-        setError(null);
+        localStorage.setItem(cacheKey, JSON.stringify(res.data));
+        processEntries(res.data.entries || {});
       } catch (err) {
-        setError(err.response?.data?.error || "Failed to fetch debate entries");
-        setEntries([]);
+        console.error("Failed to fetch fresh debate entries:", err);
+        if (!cached) {
+          setError(err.response?.data?.error || "Failed to fetch debate entries");
+          setEntries([]);
+        }
       }
     };
     fetchEntries();

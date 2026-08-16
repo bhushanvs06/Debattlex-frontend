@@ -1,0 +1,10 @@
+react-chartjs-2
+chart.js
+lottie-react
+react-confetti
+lucide-react
+react-icons
+recharts
+socket.io-client
+framer-motion
+react-youtube

@@ -29,6 +29,7 @@ const DebatePrep1 = () => {
   const [summaryHighlights, setSummaryHighlights] = useState({});
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResult, setSearchResult] = useState('');
+  // eslint-disable-next-line no-unused-vars
   const [currentMotion, setCurrentMotion] = useState('');
   const [debateTimer, setDebateTimer] = useState(0);
   const [isTimerActive, setIsTimerActive] = useState(false);
@@ -115,6 +116,7 @@ const DebatePrep1 = () => {
     };
 
     fetchDebateData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Dynamic teamMembers based on fetched data and userrole
@@ -174,8 +176,7 @@ const DebatePrep1 = () => {
         }
       };
 
-  // Memoize summaryHighlights to prevent duplicate saves
-  const memoizedSummaryHighlights = useMemo(() => summaryHighlights, [JSON.stringify(summaryHighlights)]);
+  // Deleted unused memoizedSummaryHighlights
 
   // Summarize transcripts and save for all roles
   useEffect(() => {
@@ -272,6 +273,7 @@ const DebatePrep1 = () => {
     };
 
     summarizeTranscripts().catch(err => console.error('❌ Error summarizing transcripts:', err.message));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userTranscript, teammate1Transcript, teammate2Transcript, debateData, topic, topicSlug, userrole, email]);
 
   // Save notes to MongoDB Atlas on debouncedNotes change
@@ -305,6 +307,7 @@ const DebatePrep1 = () => {
     };
 
     saveNotes().catch(err => console.error('❌ Error saving notes:', err.message));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [debouncedNotes, debateData, userrole, topic, topicSlug, email]);
 
   // Timer logic with 20-minute limit and navigation
@@ -422,6 +425,7 @@ const DebatePrep1 = () => {
     };
 
     generateRoleTextMap().catch(err => console.error('❌ Error generating roleTextMap:', err.message));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [transcript, debateData, userrole]);
 
   const formatTime = (seconds) => {
@@ -492,6 +496,7 @@ const DebatePrep1 = () => {
     navigate('/arina3v3');
   };
 
+  // eslint-disable-next-line no-unused-vars
   const speak = (text, rate = 1, pitch = 1) => {
     if (!window.speechSynthesis) {
       console.error('Speech synthesis not supported.');

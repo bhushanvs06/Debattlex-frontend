@@ -407,10 +407,14 @@ footer{position:relative;z-index:2;padding:56px 40px;
 }
 `;
 
+/* ── Mobile detection ── */
+const isTouchDevice = () => window.matchMedia("(pointer: coarse)").matches;
+
 /* ── Stars ── */
 const StarField = () => {
   const ref = useRef(null);
   useEffect(() => {
+    if (isTouchDevice()) return;
     const c = ref.current, ctx = c.getContext("2d");
     let W, H, stars = [], raf;
     const init = () => {
@@ -442,6 +446,7 @@ const StarField = () => {
 const Cursor = () => {
   const dot = useRef(null), ring = useRef(null);
   useEffect(() => {
+    if (isTouchDevice()) return;
     let mx = 0, my = 0, rx = 0, ry = 0;
     const mv = e => {
       mx = e.clientX; my = e.clientY;

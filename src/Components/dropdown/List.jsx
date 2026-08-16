@@ -3,7 +3,6 @@ import Stepper, { Step } from "../React_bits/Card/Stepper";
 import axios from "axios";
 import "./List.css";
 import { useNavigate } from "react-router-dom";
-import ProfileCard from "../React_bits/ProfileCard/ProfileCard";
 
 var url = process.env.React_App_url;
 

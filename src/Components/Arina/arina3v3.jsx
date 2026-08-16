@@ -1,21 +1,16 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Mic, MicOff, FileText, PhoneOff, Notebook } from 'lucide-react';
-import './DebateUI.css';
+import { Mic, MicOff, PhoneOff, Notebook, Home, FileText, MessageSquare } from 'lucide-react';
+import './Arina.css';
 import { useNavigate } from 'react-router-dom';
-import { FaClosedCaptioning } from "react-icons/fa";
-import { FaRegClosedCaptioning } from "react-icons/fa";
-import { FaRegFileAlt } from "react-icons/fa";
 
-// const url = 'https://debattlex.onrender.com';
-var url =  process.env.React_App_url;
-
+var url = process.env.React_App_url;
 
 const toBoldItalic = (word) => {
   const map = {
     a: '𝐚', b: '𝐛', c: '𝐜', d: '𝐝', e: '𝐞', f: '𝐟', g: '𝐠',
     h: '𝐡', i: '𝐢', j: '𝐣', k: '𝐤', l: '𝐥', m: '𝐦', n: '𝐧',
     o: '𝐨', p: '𝐩', q: '𝐪', r: '𝐫', s: '𝐬', t: '𝐭', u: '𝐮',
-    v: '𝐯', w: '𝐰', x: '𝐱', y: '𝐯', z: '𝐳', 
+    v: '𝐯', w: '𝐰', x: '𝐱', y: '𝐯', z: '𝐳',
     A: '𝐀', B: '𝐁', C: '𝐂', D: '𝐃', E: '𝐄', F: '𝐅', G: '𝐆',
     H: '𝐇', I: '𝐈', J: '𝐉', K: '𝐊', L: '𝐋', M: '𝐌', N: '𝐍',
     O: '𝐎', P: '𝐏', Q: '𝐐', R: '𝐑', S: '𝐒', T: '𝐓', U: '𝐔',
@@ -25,6 +20,15 @@ const toBoldItalic = (word) => {
 };
 
 const DebateUI = () => {
+  const [isMobileMode, setIsMobileMode] = useState(window.innerWidth < 980);
+  const [showTranscript, setShowTranscript] = useState(true);
+
+  useEffect(() => {
+    const handleResize = () => setIsMobileMode(window.innerWidth < 980);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
   const [isMuted, setIsMuted] = useState(true);
   const [currentSpeakerIndex, setCurrentSpeakerIndex] = useState(0);
   const [timeLeft, setTimeLeft] = useState(60);
@@ -41,16 +45,73 @@ const DebateUI = () => {
   const [userData, setUserData] = useState(null);
   const [allSpeakers, setAllSpeakers] = useState([]);
   const [userRole, setUserRole] = useState('');
-  const [introCountdown, setIntroCountdown] = useState(10);
+  const [introCountdown, setIntroCountdown] = useState(3); // snappy countdown
   const [debateStarted, setDebateStarted] = useState(false);
-  const [ema, Setema] = useState('');
   const [isNoteTakerOpen, setIsNoteTakerOpen] = useState(false);
   const [notes, setNotes] = useState('');
+  const [userStance, setUserStance] = useState('');
+  // voicePlan is controlled globally via NavigationBar → localStorage
+  // voicePlanRef holds current value for TTS calls; voicePlanDisplay drives UI re-renders
+  const voicePlanRef = useRef(localStorage.getItem('voicePlan') || 'Pro');
+  const [voicePlanDisplay, setVoicePlanDisplay] = useState(localStorage.getItem('voicePlan') || 'Pro');
+  const toggleVoicePlan = () => {
+    const newVal = voicePlanRef.current === 'Pro' ? 'Lite' : 'Pro';
+    voicePlanRef.current = newVal;
+    setVoicePlanDisplay(newVal);
+    localStorage.setItem('voicePlan', newVal);
+    window.dispatchEvent(new StorageEvent('storage', { key: 'voicePlan', newValue: newVal }));
+  };
+  useEffect(() => {
+    const sync = () => {
+      const v = localStorage.getItem('voicePlan') || 'Pro';
+      voicePlanRef.current = v;
+      setVoicePlanDisplay(v);
+    };
+    window.addEventListener('storage', sync);
+    return () => window.removeEventListener('storage', sync);
+  }, []);
+  // Speaking session guard — prevents overlapping TTS chains
+  const speakSessionRef = useRef(0);
+  // Speech generation lock — prevents overlapping AI speech API calls
+  const speechLockRef = useRef(false);
+  const savePromiseRef = useRef(Promise.resolve());
+  const hasSavedThisTurnRef = useRef(false);
+
+  useEffect(() => {
+    hasSavedThisTurnRef.current = false;
+  }, [currentSpeakerIndex]);
+
+  const [isThinking, setIsThinking] = useState(false); // AI fetching speech
   const navigate = useNavigate();
+
+  // ── Auto-rotate to landscape on mobile ─────────────────────
+  useEffect(() => {
+    const lockLandscape = async () => {
+      try {
+        if (window.screen.orientation && window.screen.orientation.lock) {
+          await window.screen.orientation.lock('landscape');
+        }
+      } catch (err) {
+        console.log('Orientation lock not available:', err.message);
+      }
+    };
+    lockLandscape();
+    return () => {
+      try {
+        if (window.screen.orientation && window.screen.orientation.unlock) {
+          window.screen.orientation.unlock();
+        }
+      } catch (err) {
+        // Ignore unlock errors
+      }
+    };
+  }, []);
 
   const recognitionRef = useRef(null);
   const currentAudioRef = useRef(null);
   const videoRef = useRef(null);
+  const audioContextRef = useRef(null);
+  const prefetchCacheRef = useRef(new Map());
   const [allPrep, setAllPrep] = useState({
     PM: "",
     DPM: "",
@@ -61,12 +122,12 @@ const DebateUI = () => {
   });
 
   const voiceMap = {
-    PM: 'abhilash',
-    DPM: 'karun',
-    GW: 'hitesh',
-    LO: 'anushka',
-    DLO: 'manisha',
-    OW: 'arya'
+    PM: 'rahul',       // Male — bulbul:v3 compatible
+    DPM: 'rohan',     // Male — bulbul:v3 compatible
+    GW: 'amit',       // Male — bulbul:v3 compatible
+    LO: 'priya',      // Female — bulbul:v3 compatible
+    DLO: 'ritu',      // Female — bulbul:v3 compatible
+    OW: 'neha'        // Female — bulbul:v3 compatible
   };
 
   const propVideoMap = {
@@ -82,52 +143,110 @@ const DebateUI = () => {
   };
 
   const saveToMongo = async ({ transcript, summary, speaker }) => {
-  try {
-    const team = speaker.team.toLowerCase() === 'prop' ? 'proposition' : 'opposition';
+    try {
+      const team = speaker.team.toLowerCase() === 'prop' ? 'proposition' : 'opposition';
 
-    // Get latest 3v3 key (your existing logic)
-    const allKeys = Object.keys(userData.entries || {});
-    const latestKey = allKeys
-      .filter(k => userData.entries[k].debateType === '3v3')
-      .sort((a, b) => new Date(userData.entries[b].createdAt) - new Date(userData.entries[a].createdAt))[0];
+      const allKeys = Object.keys(userData.entries || {});
+      const latestKey = allKeys
+        .filter(k => userData.entries[k].debateType === '3v3')
+        .sort((a, b) => new Date(userData.entries[b].createdAt) - new Date(userData.entries[a].createdAt))[0];
 
-    if (!latestKey) {
-      console.warn("No 3v3 debate entry found for saving.");
-      return;
-    }
+      if (!latestKey) {
+        console.warn("No 3v3 debate entry found for saving.");
+        return;
+      }
 
-    console.log("Saving transcript & summary to backend:", {
-      email: userData.email,
-      topicSlug: latestKey,
-      team,
-      role: speaker.role.toLowerCase(),
-      transcript: transcript.substring(0, 100) + "...",
-      summary: summary
-    });
-
-    const res = await fetch(url + "/api/saveRoleTranscript", {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
+      console.log("Saving transcript & summary to backend:", {
         email: userData.email,
         topicSlug: latestKey,
         team,
         role: speaker.role.toLowerCase(),
-        transcript,
-        summary: Array.isArray(summary) ? summary : [summary]  // ensure array
-      })
-    });
+        transcript: transcript.substring(0, 100) + "...",
+        summary: summary
+      });
 
-    const result = await res.json();
-    if (!res.ok) {
-      console.error("Save failed:", result.message || result.error);
-    } else {
-      console.log("✅ Successfully saved to backend:", result.message);
+      const res = await fetch(url + "/api/saveRoleTranscript", {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        },
+        body: JSON.stringify({
+          email: userData.email,
+          topicSlug: latestKey,
+          team,
+          role: speaker.role.toLowerCase(),
+          transcript,
+          summary: Array.isArray(summary) ? summary : [summary]
+        })
+      });
+
+      const result = await res.json();
+      if (!res.ok) {
+        console.error("Save failed:", result.message || result.error);
+      } else {
+        console.log("✅ Successfully saved to backend:", result.message);
+      }
+    } catch (error) {
+      console.error("Error saving to backend:", error);
     }
-  } catch (error) {
-    console.error("Error saving to backend:", error);
-  }
-};
+  };
+
+  const saveUserTurnSpeech = (tempTranscript, tempSpeaker) => {
+    if (!tempTranscript || !tempTranscript.trim()) return Promise.resolve();
+    if (hasSavedThisTurnRef.current) return savePromiseRef.current;
+    hasSavedThisTurnRef.current = true;
+
+    const cleanText = tempTranscript.trim();
+    const savePromise = (async () => {
+      try {
+        const latestKey = Object.keys(userData?.entries || {})
+          .filter(k => userData.entries[k].debateType === '3v3')
+          .sort((a, b) => new Date(userData.entries[b].createdAt) - new Date(userData.entries[a].createdAt))[0];
+
+        if (!latestKey) return;
+
+        const res = await fetch(url + "/api/generateSummary", {
+          method: 'POST',
+          headers: { 
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${localStorage.getItem('token')}`
+          },
+          body: JSON.stringify({ 
+            transcript: cleanText, 
+            role: tempSpeaker.role, 
+            team: tempSpeaker.team.toLowerCase() === 'prop' ? 'proposition' : 'opposition', 
+            topic,
+            email: userData?.email
+          })
+        });
+
+        let summaryPoints = ["Debater spoke on the motion."];
+        if (res.ok) {
+          const data = await res.json();
+          summaryPoints = Array.isArray(data.summary) ? data.summary : [data.summary || ''];
+        }
+
+        const labeled = summaryPoints.map(point => `${tempSpeaker.role}: ${point}`);
+        if (tempSpeaker.team.toLowerCase() === 'prop') {
+          setPropSummary(prev => [...labeled, ...prev]);
+        } else {
+          setOppSummary(prev => [...labeled, ...prev]);
+        }
+
+        await saveToMongo({
+          transcript: cleanText,
+          summary: summaryPoints,
+          speaker: tempSpeaker
+        });
+      } catch (err) {
+        console.error('Error saving user speech:', err);
+      }
+    })();
+
+    savePromiseRef.current = savePromise;
+    return savePromise;
+  };
 
   useEffect(() => {
     const fetchData = async () => {
@@ -139,7 +258,11 @@ const DebateUI = () => {
       }
 
       try {
-        const res = await fetch(url + `/api/getUserDebateData?email=${storedEmail}`);
+        const res = await fetch(url + `/api/getUserDebateData?email=${storedEmail}`, {
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('token')}`
+          }
+        });
         const user = await res.json();
         setUserData(user);
 
@@ -148,14 +271,56 @@ const DebateUI = () => {
           .filter(key => entries[key].debateType === "3v3")
           .sort((a, b) => new Date(entries[b].createdAt) - new Date(entries[a].createdAt))[0];
 
+        if (latest3v3Key) {
+          localStorage.setItem('activeDebateKey', latest3v3Key);
+        }
+
         const entry = entries[latest3v3Key];
         const topic = entry.topic;
         const stance = entry.stance;
+        setUserStance(stance);
         const userrole = entry.userrole?.toUpperCase();
         setUserRole(userrole);
 
         const proposition = entry.proposition;
         const opposition = entry.opposition;
+
+        // Load existing summaries on mount from database entry
+        const initialPropSummary = [];
+        if (proposition) {
+          const roles = ['pm', 'dpm', 'gw'];
+          roles.forEach(r => {
+            if (proposition[r] && proposition[r].summary) {
+              const summaryArr = Array.isArray(proposition[r].summary)
+                ? proposition[r].summary
+                : [proposition[r].summary];
+              summaryArr.forEach(pt => {
+                if (pt && pt.trim()) {
+                  initialPropSummary.push(`${r.toUpperCase()}: ${pt}`);
+                }
+              });
+            }
+          });
+        }
+        setPropSummary(initialPropSummary);
+
+        const initialOppSummary = [];
+        if (opposition) {
+          const roles = ['lo', 'dlo', 'ow'];
+          roles.forEach(r => {
+            if (opposition[r] && opposition[r].summary) {
+              const summaryArr = Array.isArray(opposition[r].summary)
+                ? opposition[r].summary
+                : [opposition[r].summary];
+              summaryArr.forEach(pt => {
+                if (pt && pt.trim()) {
+                  initialOppSummary.push(`${r.toUpperCase()}: ${pt}`);
+                }
+              });
+            }
+          });
+        }
+        setOppSummary(initialOppSummary);
 
         const allPreps = {
           PM: proposition?.pm?.prep || "",
@@ -200,7 +365,10 @@ const DebateUI = () => {
             `${url}/api/fetchNotes?email=${encodeURIComponent(storedEmail)}&topic=${encodeURIComponent(topic)}&topicSlug=${encodeURIComponent(latest3v3Key)}&team=${encodeURIComponent(stance)}&role=${encodeURIComponent(userrole.toLowerCase())}`,
             {
               method: 'GET',
-              headers: { 'Content-Type': 'application/json' }
+              headers: { 
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${localStorage.getItem('token')}`
+              }
             }
           );
           const notesData = await notesRes.json();
@@ -248,49 +416,51 @@ const DebateUI = () => {
   const userName = userData?.displayName?.toUpperCase() || '';
   const isUserTurn = currentSpeaker?.name === userName;
 
+  // Keep a ref to latest userTranscript so the timer doesn't restart on every speech fragment
+  const userTranscriptRef = useRef('');
+  useEffect(() => { userTranscriptRef.current = userTranscript; }, [userTranscript]);
+
   useEffect(() => {
     if (!currentSpeaker || !debateStarted) return;
     const timer = setInterval(() => {
+      // For AI turns, only count down when the AI is actually speaking (audio playing).
+      // This prevents timer expiration during network lag/TTS generation/thinking.
+      if (!isUserTurn && !isSpeaking) return;
+
       setTimeLeft(prev => {
         if (prev <= 1) {
-          if (currentAudioRef.current) {
-            currentAudioRef.current.pause();
-            currentAudioRef.current = null;
-          }
-          if (videoRef.current) {
-            videoRef.current.pause();
-          }
+          // Kill audio chain
+          speakSessionRef.current += 1;
+          speechLockRef.current = false;
+          try {
+            if (currentAudioRef.current) {
+              currentAudioRef.current.onended = null;
+              currentAudioRef.current.stop();
+            }
+          } catch(e) {}
+          currentAudioRef.current = null;
+          // Force close and recreate AudioContext to guarantee silence
+          try {
+            if (audioContextRef.current && audioContextRef.current.state !== 'closed') {
+              audioContextRef.current.close();
+            }
+          } catch(e) {}
+          audioContextRef.current = null;
+          if (videoRef.current) videoRef.current.pause();
 
-          if (isUserTurn && userTranscript.trim()) {
-            const tempTranscript = userTranscript.trim();
-            const tempSpeaker = currentSpeaker;
-
-            const latestKey = Object.keys(userData.entries)
-              .filter(k => userData.entries[k].debateType === '3v3')
-              .sort((a, b) => new Date(userData.entries[b].createdAt) - new Date(userData.entries[a].createdAt))[0];
-
-            generateSummary(tempTranscript, tempSpeaker).then((tempSummary) => {
-              saveToMongo({
-                transcript: tempTranscript,
-                summary: tempSummary,
-                speaker: {
-                  team: tempSpeaker.team,
-                  role: userData.entries[latestKey]?.userrole
-                }
-              });
-            });
-
+          const latestTranscript = userTranscriptRef.current;
+          if (isUserTurn && latestTranscript && latestTranscript.trim()) {
+            saveUserTurnSpeech(latestTranscript, currentSpeaker);
             setUserTranscript('');
-            setCaptionLines([]);
-            setCaptionLineIndex(0);
-            setHighlightedWordIndex(0);
           }
 
-          if (recognitionRef.current) recognitionRef.current.stop();
+          try { if (recognitionRef.current) recognitionRef.current.stop(); } catch(e) {}
           setCaptionLines([]);
           setCaptionLineIndex(0);
           setHighlightedWordIndex(0);
           setIsMuted(true);
+          setIsSpeaking(false);
+          setIsThinking(false);
           nextSpeaker();
           return 60;
         }
@@ -299,7 +469,7 @@ const DebateUI = () => {
       });
     }, 1000);
     return () => clearInterval(timer);
-  }, [currentSpeakerIndex, userTranscript, isUserTurn, debateStarted]);
+  }, [currentSpeakerIndex, isUserTurn, debateStarted, isThinking, isSpeaking]);
 
   useEffect(() => {
     if (!('webkitSpeechRecognition' in window)) return;
@@ -334,7 +504,7 @@ const DebateUI = () => {
         setCaptionLines(lines);
         setCaptionLineIndex(lines.length > 0 ? lines.length - 1 : 0);
         setHighlightedWordIndex(0);
-        setUserTranscript(fullTranscript.trim());
+        setUserTranscript(combined);
       };
 
       recognition.onerror = (err) => {
@@ -352,47 +522,96 @@ const DebateUI = () => {
 
   useEffect(() => {
     if (triggerNextAISpeech && currentSpeaker && !isUserTurn && debateStarted) {
-      setTimeout(() => generateAISpeech(currentSpeaker), 500);
+      // Start AI speech immediately — no artificial delay
+      generateAISpeech(currentSpeaker);
       setTriggerNextAISpeech(false);
     }
   }, [triggerNextAISpeech, currentSpeakerIndex, debateStarted]);
 
-  function hangupclick() {
-    if (currentAudioRef.current) {
-      currentAudioRef.current.pause();
-      currentAudioRef.current = null;
+  async function hangupclick() {
+    // Kill any running audio chain
+    speakSessionRef.current += 1;
+    speechLockRef.current = false;
+    try {
+      if (currentAudioRef.current) {
+        currentAudioRef.current.onended = null;
+        currentAudioRef.current.stop();
+      }
+    } catch(e) {}
+    currentAudioRef.current = null;
+    // Force close AudioContext to guarantee silence
+    try {
+      if (audioContextRef.current && audioContextRef.current.state !== 'closed') {
+        audioContextRef.current.close();
+      }
+    } catch(e) {}
+    audioContextRef.current = null;
+    if (videoRef.current) videoRef.current.pause();
+    setIsSpeaking(false);
+
+    // Save user transcript if it's user's turn
+    if (isUserTurn && userTranscript.trim()) {
+      try {
+        await saveUserTurnSpeech(userTranscript, currentSpeaker);
+      } catch(e) { console.error('Error saving user speech on hangup:', e); }
+      setUserTranscript('');
     }
-    if (videoRef.current) {
-      videoRef.current.pause();
+    if (recognitionRef.current) {
+      try { recognitionRef.current.stop(); } catch(e) {}
     }
+    // Wait for any background saves to complete before navigating
+    setCaptionLines(["Saving progress, navigating..."]);
+    setCaptionLineIndex(0);
+    setHighlightedWordIndex(0);
+    await savePromiseRef.current;
     navigate('/aijudge');
   }
 
   const nextSpeaker = () => {
-    if (currentAudioRef.current) {
-      currentAudioRef.current.pause();
-      currentAudioRef.current = null;
+    // Kill any running audio chain immediately
+    speakSessionRef.current += 1;
+    speechLockRef.current = false;
+
+    if (isUserTurn && userTranscript.trim()) {
+      saveUserTurnSpeech(userTranscript, currentSpeaker);
+      setUserTranscript('');
     }
-    if (videoRef.current) {
-      videoRef.current.pause();
-    }
+    try {
+      if (currentAudioRef.current) {
+        currentAudioRef.current.onended = null;
+        currentAudioRef.current.stop();
+      }
+    } catch(e) {}
+    currentAudioRef.current = null;
+    // Force close AudioContext to guarantee no lingering audio
+    try {
+      if (audioContextRef.current && audioContextRef.current.state !== 'closed') {
+        audioContextRef.current.close();
+      }
+    } catch(e) {}
+    audioContextRef.current = null;
+    if (videoRef.current) videoRef.current.pause();
     if (recognitionRef.current && isUserTurn) {
-      recognitionRef.current.stop();
+      try { recognitionRef.current.stop(); } catch(e) {}
     }
     setIsSpeaking(false);
+    setIsThinking(false);
     setIsMuted(true);
+    prefetchCacheRef.current.clear();
 
     const nextIndex = currentSpeakerIndex + 1;
 
     if (nextIndex >= allSpeakers.length) {
-      setCaptionLines(["Debate completed!"]);
+      setCaptionLines(["Debate completed! Navigating to AI Judge..."]);
       setCaptionLineIndex(0);
       setHighlightedWordIndex(0);
-      setTimeout(() => {
-        const exitBtn = document.querySelector('.hangup');
-        if (exitBtn) exitBtn.click();
-        navigate('/aijudge');
-      }, 10000);
+      // Auto-navigate after 5 seconds once debate is fully complete and saved
+      (async () => {
+        await savePromiseRef.current;
+        setTimeout(() => {
+          navigate('/aijudge');
+        }, 5000);
+      })();
       return;
     }
 
@@ -404,234 +623,354 @@ const DebateUI = () => {
     setTriggerNextAISpeech(true);
   };
 
-  const speakText = async (lines, index) => {
-    const expectedIndex = currentSpeakerIndex;
+  // ── AudioContext helper (shared, reusable) ──
+  const getAudioCtx = async () => {
+    try {
+      if (!audioContextRef.current || audioContextRef.current.state === 'closed') {
+        audioContextRef.current = new (window.AudioContext || window.webkitAudioContext)();
+      }
+      if (audioContextRef.current.state === 'suspended') {
+        await audioContextRef.current.resume();
+      }
+    } catch (e) {
+      console.warn('AudioContext error, creating new one:', e);
+      audioContextRef.current = new (window.AudioContext || window.webkitAudioContext)();
+    }
+    return audioContextRef.current;
+  };
+
+  // ── Fetch TTS audio and decode to AudioBuffer ──
+  const fetchTTSBuffer = async (line, speakerRole) => {
+    const speakerVoice = voiceMap[speakerRole] || 'manisha';
+    const cleanLine = (line || '').trim();
+    if (!cleanLine) return null;
+    try {
+      const res = await fetch(url + '/api/tts', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        },
+        body: JSON.stringify({
+          text: cleanLine,
+          speaker: speakerVoice,
+          voicePlan: voicePlanRef.current,
+          role: speakerRole,
+          email: userData?.email
+        })
+      });
+      if (!res.ok) {
+        console.warn(`TTS API returned ${res.status} for line: "${cleanLine.substring(0,40)}..."`);
+        return null;
+      }
+      const response = await res.json();
+      const base64Audio = response.audioBase64;
+      if (!base64Audio) return null;
+
+      const byteCharacters = atob(base64Audio);
+      const byteArray = new Uint8Array(byteCharacters.length);
+      for (let i = 0; i < byteCharacters.length; i++) {
+        byteArray[i] = byteCharacters.charCodeAt(i);
+      }
+      const ctx = await getAudioCtx();
+      return await ctx.decodeAudioData(byteArray.buffer.slice(0));
+    } catch (err) {
+      console.error('fetchTTSBuffer error:', err);
+      return null;
+    }
+  };
+
+  // ── Pre-fetch next line while current plays ──
+  const prefetchLine = (lines, nextIndex, speakerRole) => {
+    if (nextIndex >= lines.length) return;
+    const nextLine = (lines[nextIndex] || '').replace(/[*#]/g, '').trim();
+    if (!nextLine) return;
+    const cacheKey = `${nextIndex}_${nextLine.substring(0, 30)}`;
+    if (!prefetchCacheRef.current.has(cacheKey)) {
+      const promise = fetchTTSBuffer(nextLine, speakerRole).catch(() => null);
+      prefetchCacheRef.current.set(cacheKey, promise);
+    }
+  };
+
+  // speakerRole passed as explicit param to avoid stale closure reads
+  const speakText = async (lines, index, sessionId, speakerRole) => {
+    // Session guard — abort if session changed
+    if (sessionId !== speakSessionRef.current) return;
+
     if (index >= lines.length || !lines[index]) {
-      setIsSpeaking(false);
-      if (videoRef.current) {
-        videoRef.current.pause();
+      // Chain complete — all lines spoken
+      if (sessionId === speakSessionRef.current) {
+        setIsSpeaking(false);
+        if (videoRef.current) videoRef.current.pause();
+        prefetchCacheRef.current.clear();
+        // If this was the LAST speaker, auto-navigate to judge
+        if (currentSpeakerIndex >= allSpeakers.length - 1) {
+          setCaptionLines(["Debate completed! Navigating to AI Judge..."]);
+          setCaptionLineIndex(0);
+          setHighlightedWordIndex(0);
+          (async () => {
+            await savePromiseRef.current;
+            setTimeout(() => navigate('/aijudge'), 5000);
+          })();
+        } else {
+          // Automatically advance to next speaker when AI finishes
+          nextSpeaker();
+        }
       }
       return;
     }
 
-    const line = lines[index].replace(/[\*#]/g, '');
+    const line = (lines[index] || '').replace(/[*#]/g, '').trim();
+    if (!line) {
+      // Empty line — skip to next
+      if (sessionId === speakSessionRef.current) {
+        speakText(lines, index + 1, sessionId, speakerRole);
+      }
+      return;
+    }
+
     setCaptionLineIndex(index);
     setHighlightedWordIndex(0);
 
     try {
-      const speakerVoice = voiceMap[currentSpeaker.role] || 'manisha'; // fallback
-      const res = await fetch(url + '/api/tts', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          text: line,
-          target_language_code: "en-IN",
-          speaker: speakerVoice,
-          pitch: 0.1,
-          pace: 0.8,
-          loudness: 1.7,
-          speech_sample_rate: 24000,
-          enable_preprocessing: true,
-          model: "bulbul:v2"
-        })
-      });
-      const response = await res.json();
+      // Check prefetch cache first, otherwise fetch now
+      const cacheKey = `${index}_${line.substring(0, 30)}`;
+      let audioBuffer;
+      if (prefetchCacheRef.current.has(cacheKey)) {
+        audioBuffer = await prefetchCacheRef.current.get(cacheKey);
+        prefetchCacheRef.current.delete(cacheKey);
+      } else {
+        audioBuffer = await fetchTTSBuffer(line, speakerRole);
+      }
 
-      if (currentSpeakerIndex !== expectedIndex) {
-        console.log("Stale speaker index after TTS, skipping playback");
+      // Re-check session after async fetch
+      if (sessionId !== speakSessionRef.current) return;
+
+      if (!audioBuffer) {
+        // TTS failed for this line — skip to next
+        speakText(lines, index + 1, sessionId, speakerRole);
         return;
       }
 
-      const base64Audio = response.audioBase64;
-      if (!base64Audio) {
-        console.error("No audio data in response");
-        setIsSpeaking(false);
-        if (currentSpeakerIndex === expectedIndex) {
-          speakText(lines, index + 1);
+      // Prefetch next line immediately, passing role explicitly
+      prefetchLine(lines, index + 1, speakerRole);
+
+      // Ensure AudioContext is running before playing
+      const ctx = await getAudioCtx();
+
+      // Stop any lingering audio before starting
+      try {
+        if (currentAudioRef.current) {
+          currentAudioRef.current.onended = null;
+          currentAudioRef.current.stop();
         }
-        return;
-      }
+      } catch(e) {}
 
-      const byteCharacters = atob(base64Audio);
-      const byteNumbers = new Array(byteCharacters.length);
-      for (let i = 0; i < byteCharacters.length; i++) {
-        byteNumbers[i] = byteCharacters.charCodeAt(i);
-      }
-      const byteArray = new Uint8Array(byteNumbers);
+      const source = ctx.createBufferSource();
+      source.buffer = audioBuffer;
+      source.connect(ctx.destination);
+      currentAudioRef.current = source;
 
-      const audioBlob = new Blob([byteArray], { type: "audio/wav" });
-      const audioUrl = URL.createObjectURL(audioBlob);
+      const words = line.split(' ').length;
+      const duration = audioBuffer.duration;
+      const timePerWord = (duration * 1000) / Math.max(words, 1);
 
-      const audio = new Audio(audioUrl);
-      currentAudioRef.current = audio;
-
-      const words = line.split(" ").length;
-
-      audio.addEventListener('loadedmetadata', () => {
-        const duration = audio.duration;
-        const timePerWord = (duration * 1000) / words;
-
-        let wordIndex = 0;
-        const interval = setInterval(() => {
-          setHighlightedWordIndex(wordIndex);
-          wordIndex++;
-          if (wordIndex >= words) {
-            clearInterval(interval);
-          }
-        }, timePerWord);
-
-        audio.addEventListener('ended', () => {
+      let wordIndex = 0;
+      const interval = setInterval(() => {
+        if (sessionId !== speakSessionRef.current) {
           clearInterval(interval);
-          setIsSpeaking(false);
-          setHighlightedWordIndex(0);
-          if (videoRef.current) {
-            videoRef.current.pause();
-          }
-          if (currentSpeakerIndex === expectedIndex) {
-            speakText(lines, index + 1);
-          }
-        });
-
-        audio.play().then(() => {
-          setIsSpeaking(true);
-          if (videoRef.current) {
-            videoRef.current.play();
-          }
-        }).catch(err => {
-          console.error("Audio play error:", err);
-          setIsSpeaking(false);
-          clearInterval(interval);
-          if (currentSpeakerIndex === expectedIndex) {
-            speakText(lines, index + 1);
-          }
-        });
-      });
-
-      audio.addEventListener('error', (err) => {
-        console.error("Audio error:", err);
-        setIsSpeaking(false);
-        if (currentSpeakerIndex === expectedIndex) {
-          speakText(lines, index + 1);
+          return;
         }
-      });
-    } catch (error) {
-      console.error("TTS Error:", error);
-      setIsSpeaking(false);
-      if (currentSpeakerIndex === expectedIndex) {
-        speakText(lines, index + 1);
+        setHighlightedWordIndex(wordIndex);
+        wordIndex++;
+        if (wordIndex >= words) clearInterval(interval);
+      }, timePerWord);
+
+      source.start();
+      setIsSpeaking(true);
+      if (videoRef.current) videoRef.current.play().catch(() => {});
+
+      // Fallback timer: if onended never fires, advance after duration + buffer
+      const fallbackMs = (duration || 3) * 1000 + 4000;
+      let advanced = false;
+
+      const advanceToNext = () => {
+        if (advanced) return;
+        advanced = true;
+        clearInterval(interval);
+        clearInterval(watchdog);
+        setHighlightedWordIndex(0);
+        if (sessionId === speakSessionRef.current) {
+          speakText(lines, index + 1, sessionId, speakerRole);
+        } else {
+          setIsSpeaking(false);
+          if (videoRef.current) videoRef.current.pause();
+        }
+      };
+
+      const fallbackTimer = setTimeout(advanceToNext, fallbackMs);
+
+      // Watchdog: keep AudioContext alive — resume if suspended
+      const watchdog = setInterval(async () => {
+        if (advanced || sessionId !== speakSessionRef.current) {
+          clearInterval(watchdog);
+          return;
+        }
+        try {
+          if (audioContextRef.current && audioContextRef.current.state === 'suspended') {
+            await audioContextRef.current.resume();
+          }
+        } catch(e) {}
+      }, 500);
+
+      source.onended = () => {
+        clearTimeout(fallbackTimer);
+        advanceToNext();
+      };
+    } catch (err) {
+      console.error('speakText error:', err);
+      // Don't get stuck — skip to next line on any error
+      if (sessionId === speakSessionRef.current) {
+        speakText(lines, index + 1, sessionId, speakerRole);
       }
     }
   };
 
- const generateAISpeech = async (speaker) => {
-  const expectedIndex = currentSpeakerIndex;
-
-  try {
-    // Combine previous summaries for context (your existing logic)
-    const previousPropSummary = propSummary.join('\n');
-    const previousOppSummary = oppSummary.join('\n');
-    const previousSummaries = `Proposition summaries:\n${previousPropSummary}\n\nOpposition summaries:\n${previousOppSummary}`;
-
-    // Use existing topic and generate slug (same as backend)
-    const currentTopicSlug = topic
-      ?.toLowerCase()
-      .replace(/[^\w\s]/g, '')
-      .replace(/\s+/g, '_') || '';
-
-    // Use prep from your allPrep state (already fetched)
-    const prepForRole = allPrep[speaker.role?.toUpperCase()] || "";
-
-    // Payload — uses variables that exist in your component
-    const payload = {
-      email: userData?.email,                      // from your useEffect fetch
-      role: speaker.role?.toLowerCase(),           // e.g. "lo", "pm"
-      team: speaker.team === 'prop' ? 'prop' : 'opp',
-      topic: topic || 'Untitled Debate',           // your topic state
-      topicSlug: currentTopicSlug,                 // generated from topic
-      prep: prepForRole,                           // prep from allPrep
-      previousSummaries: previousSummaries.trim() || ""
-    };
-
-    console.log(`[generateAISpeech] Sending request for ${speaker.role} (${speaker.team}):`, payload);
-
-    const res = await fetch(`${url}/api/generateAISpeech`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload)
-    });
-
-    if (!res.ok) {
-      const errorText = await res.text();
-      throw new Error(`API error ${res.status}: ${errorText}`);
-    }
-
-    const data = await res.json();
-
-    // Stale check — your original logic
-    if (currentSpeakerIndex !== expectedIndex) {
-      console.log("Stale speaker index after generating speech, skipping update");
+  const generateAISpeech = async (speaker) => {
+    // Speech generation lock — prevent overlapping LLM calls
+    if (speechLockRef.current) {
+      console.warn('generateAISpeech skipped — another generation is in-flight');
       return;
     }
+    speechLockRef.current = true;
+    const expectedIndex = currentSpeakerIndex;
 
-    // Validate transcript
-    if (!data.transcript || typeof data.transcript !== 'string' || data.transcript.trim().length < 10) {
-      console.warn("No valid transcript received from API", data);
-      return;
-    }
-
-    // Update transcripts state
-    setTranscripts(prev => ({
-      ...prev,
-      [speaker.role]: data.transcript
-    }));
-
-    // Split into caption lines
-    const lines = data.transcript
-      .split(/[.?!]\s+/)
-      .filter(line => line.trim() !== '')
-      .map(line => line.trim());
-
-    setCaptionLines(lines);
-    setCaptionLineIndex(0);
-    setHighlightedWordIndex(0);
-
-    // Start speaking
-    speakText(lines, 0);
-
-    // Generate summary
-    generateSummary(data.transcript, speaker);
-
-    console.log(`AI speech success for ${speaker.role}:`, data.transcript.substring(0, 100) + "...");
-
-  } catch (err) {
-    console.error("Error in generateAISpeech:", err.message || err);
-    // Optional: alert or toast for user
-    // alert("Failed to generate AI response. Check console for details.");
-  }
-};
-
-    const generateSummary = async (text, speaker) => {
     try {
-      const res = await fetch(url + "/api/generateSummary", {
+      setIsThinking(true);
+      const previousPropSummary = propSummary.join('\n');
+      const previousOppSummary = oppSummary.join('\n');
+      const previousSummaries = `Proposition summaries:\n${previousPropSummary}\n\nOpposition summaries:\n${previousOppSummary}`;
+
+      const currentTopicSlug = topic
+        ?.toLowerCase()
+        .replace(/[^\w\s]/g, '')
+        .replace(/\s+/g, '_') || '';
+
+      const prepForRole = allPrep[speaker.role?.toUpperCase()] || "";
+
+      const payload = {
+        email: userData?.email,
+        role: speaker.role?.toLowerCase(),
+        team: speaker.team === 'prop' ? 'prop' : 'opp',
+        topic: topic || 'Untitled Debate',
+        topicSlug: currentTopicSlug,
+        prep: prepForRole,
+        previousSummaries: previousSummaries.trim() || ""
+      };
+
+      const res = await fetch(`${url}/api/generateAISpeech`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ transcript: text, role: speaker.role, team: speaker.team, topic })
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        },
+        body: JSON.stringify(payload)
       });
 
-      // ✅ NEW: Handle HTTP errors (including 500 from the new server route)
       if (!res.ok) {
-        const errorText = await res.text().catch(() => 'No error body returned');
-        console.error(`❌ Summary API failed with status ${res.status}: ${errorText}`);
-        return; // Gracefully exit — no crash, no summary added
+        const errText = await res.text().catch(() => 'unknown');
+        throw new Error(`AISpeech API error ${res.status}: ${errText.substring(0, 100)}`);
       }
 
       const data = await res.json();
+      setIsThinking(false);
+      speechLockRef.current = false;
 
-      // Rest of your original logic (unchanged)
-      if (!Array.isArray(data.summary)) {
-        console.warn("Summary response not an array:", data);
+      // Guard: speaker may have changed during the await
+      if (currentSpeakerIndex !== expectedIndex) return;
+
+      if (!data.transcript || typeof data.transcript !== 'string' || data.transcript.trim().length < 10) {
+        console.warn('AI returned empty/short transcript, skipping...');
+        nextSpeaker();
         return;
       }
+
+      setTranscripts(prev => ({
+        ...prev,
+        [speaker.role]: data.transcript
+      }));
+
+      const lines = data.transcript
+        .split(/[.?!]\s+/)
+        .filter(line => line.trim() !== '')
+        .map(line => line.trim());
+
+      if (lines.length === 0) {
+        console.warn('No speakable lines extracted, skipping...');
+        nextSpeaker();
+        return;
+      }
+
+      setCaptionLines(lines);
+      setCaptionLineIndex(0);
+      setHighlightedWordIndex(0);
+
+      // Bump session ID so any previous chain aborts
+      speakSessionRef.current += 1;
+      const sid = speakSessionRef.current;
+      const roleForChain = speaker.role;
+
+      // Pre-warm AudioContext so first play is instant
+      await getAudioCtx();
+
+      // Prefetch line 1 while line 0 is being fetched/played
+      if (lines.length > 1) {
+        prefetchLine(lines, 1, roleForChain);
+      }
+
+      speakText(lines, 0, sid, roleForChain);
+
+      // Fire-and-forget: summary runs in background, does NOT block audio
+      generateSummary(data.transcript, speaker).catch(err => console.error('Summary bg error:', err));
+
+    } catch (err) {
+      setIsThinking(false);
+      speechLockRef.current = false;
+      console.error('Error in generateAISpeech:', err);
+      setCaptionLines(['AI speech generation failed. Skipping speaker...']);
+      setCaptionLineIndex(0);
+      setHighlightedWordIndex(0);
+      // Auto-skip after 3 seconds on failure
+      setTimeout(() => {
+        if (currentSpeakerIndex === expectedIndex) {
+          nextSpeaker();
+        }
+      }, 3000);
+    }
+  };
+
+  const generateSummary = async (text, speaker) => {
+    try {
+      const res = await fetch(url + "/api/generateSummary", {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        },
+        body: JSON.stringify({ 
+          transcript: text, 
+          role: speaker.role, 
+          team: speaker.team, 
+          topic,
+          email: userData?.email
+        })
+      });
+
+      if (!res.ok) return;
+
+      const data = await res.json();
+
+      if (!Array.isArray(data.summary)) return;
 
       const labeled = data.summary.map(point => `${speaker.role}: ${point}`);
       if (speaker.team === 'prop') {
@@ -666,7 +1005,7 @@ const DebateUI = () => {
   const currentLine = captionLines[captionLineIndex] || '';
 
   const renderWord = (word, idx, highlightIdx) => {
-    let displayWord = word.replace(/[\*#]/g, '');
+    let displayWord = word.replace(/[*#]/g, '');
     const clean = displayWord.replace(/[^a-zA-Z]/g, '');
     if (clean.toLowerCase() === "important") {
       displayWord = toBoldItalic(displayWord);
@@ -686,124 +1025,383 @@ const DebateUI = () => {
     );
   };
 
-  return (
-    <div className="debate-container">
-      <div className="top-bar">
-        <div className="timer">⏱️ {timeLeft}s</div>
-        <div className="topic">Debate Topic: <strong>{topic}</strong></div>
-        <div className="user-role">👤 You are <strong>{userRole || '...'}</strong></div>
-      </div>
+  const oppositeTeam = (userStance || '').toLowerCase() === 'proposition' ? 'opp' : 'prop';
+  const oppositeTeamLabel = oppositeTeam === 'opp' ? 'Opposition' : 'Proposition';
+  const oppositeSummaryPoints = oppositeTeam === 'opp' ? oppSummary : propSummary;
+  const oppositeSpeakers = allSpeakers.filter(p => p.team === oppositeTeam);
 
-      <div className="debate-body">
-        <div className="side left summary-box">
-          <h3>🟩 Proposition Summary</h3>
-          <div className="summary-scroll-container">
-            {propSummary.map((point, i) => (
-              <div key={i} className="summary-point">{point}</div>
-            ))}
-          </div>
-          <div className="team-avatars">
-            {allSpeakers.filter(p => p.team === 'prop').map((spk, i) => (
-              <div className={`avatar-box ${spk.name === currentSpeaker.name ? 'active-speaker' : ''}`} key={i}>
-                <img src={spk.avatar} alt={spk.name} />
-                <div className="role-label">{spk.role}</div>
+  if (!isMobileMode) {
+    return (
+      <div className="arina-container">
+        {/* Timer — top left corner on desktop */}
+        <div className="desktop-timer-badge">
+          <span className="desktop-timer-icon">⏱️</span>
+          <span style={{ fontVariantNumeric: 'tabular-nums' }}>{timeLeft}s</span>
+          <span style={{ fontSize: '10px', color: 'rgba(255,255,255,0.5)', marginLeft: '4px' }}>
+            {isUserTurn ? '· Your turn' : isThinking ? '· Thinking…' : '· AI speaking'}
+          </span>
+        </div>
+
+        {/* Voice plan is toggled from the NavigationBar sidebar only */}
+
+        <h3 className="debate-topic-heading">
+          Topic: <span className="debate-topic-title">{topic}</span>
+        </h3>
+
+        <div className="arina-center">
+          <div className="avatar-container" style={{ position: 'relative' }}>
+            {!isUserTurn ? (
+              <video
+                ref={videoRef}
+                src={currentSpeaker.video}
+                className="speaking-video"
+                loop
+                muted
+                playsInline
+              />
+            ) : (
+              <div className="speaking-video" style={{ position: 'relative', overflow: 'hidden' }}>
+                <img
+                  src={currentSpeaker.avatar}
+                  alt={currentSpeaker.name}
+                  style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '20px' }}
+                />
+                <div style={{
+                  position: 'absolute', bottom: '12px', right: '12px',
+                  background: 'rgba(16, 185, 129, 0.9)', borderRadius: '50%',
+                  width: '40px', height: '40px', display: 'flex',
+                  alignItems: 'center', justifyContent: 'center',
+                  boxShadow: '0 4px 12px rgba(16, 185, 129, 0.4)',
+                  animation: 'pulse-mic 1.5s infinite', zIndex: 20
+                }}>
+                  <Mic size={20} color="#fff" />
+                </div>
               </div>
-            ))}
+            )}
+            {!isUserTurn && isSpeaking && <div className="gm-speaking-ring" />}
+            {isUserTurn && <div className="gm-speaking-ring" />}
+            {/* Thinking animation — shows while AI generates speech */}
+            {isThinking && !isUserTurn && (
+              <div className="thinking-overlay">
+                <div className="thinking-dots">
+                  <span></span><span></span><span></span>
+                </div>
+                <p className="thinking-label">AI is thinking…</p>
+              </div>
+            )}
+          </div>
+          <h2 style={{ marginTop: '16px' }}>{currentSpeaker.name}</h2>
+          <div className="role-tag" style={{ marginTop: '8px' }}>{currentSpeaker.role} Speaking</div>
+        </div>
+
+        <div className={`transcript-panel left-panel ${showTranscript ? 'open' : ''}`}>
+          <div className="panel-header">
+            <span className="panel-title">Proposition Summary</span>
+            <button onClick={() => setShowTranscript(false)} className="close-btn">×</button>
+          </div>
+          <div className="panel-body" style={{ display: 'flex', flexDirection: 'column', height: 'calc(100% - 65px)', padding: '16px', overflow: 'hidden' }}>
+            <ul style={{ flex: 1, overflowY: 'auto', listStyle: 'none', padding: 0 }}>
+              {propSummary.length === 0 ? (
+                <li className="gm-empty-state">No Proposition summary points yet.</li>
+              ) : (
+                propSummary.map((point, i) => (
+                  <li key={i} className="gm-point-item">
+                    <span className="gm-point-bullet">▸</span>
+                    {point}
+                  </li>
+                ))
+              )}
+            </ul>
+            <div className="team-avatars">
+              {allSpeakers.filter(p => p.team === 'prop').map((spk, i) => (
+                <div className={`avatar-box ${spk.name === currentSpeaker.name ? 'active-speaker' : ''}`} key={i}>
+                  <img src={spk.avatar} alt={spk.name} />
+                  <div className="role-label">{spk.role}</div>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
 
-        <div className="center-speaker fade-in">
-          {!isUserTurn && (
-            <video
-              ref={videoRef}
-              src={currentSpeaker.video}
-              className="speaker-video"
-              loop
-              muted
-              playsInline
-              style={{
-                borderRadius: '20px',
-                maxWidth: '100%',
-                maxHeight: '400px',
-                objectFit: 'contain',
-                margin: '0 auto',
-                display: 'block'
-              }}
-            />
-          )}
-          <h2>{currentSpeaker.name}</h2>
-          <div className="role-tag">{currentSpeaker.role} Speaking</div>
-          {showCaptions && currentLine && (
+        <div className={`transcript-panel right-panel ${showTranscript ? 'open' : ''}`}>
+          <div className="panel-header">
+            <span className="panel-title">Opposition Summary</span>
+            <button onClick={() => setShowTranscript(false)} className="close-btn">×</button>
+          </div>
+          <div className="panel-body" style={{ display: 'flex', flexDirection: 'column', height: 'calc(100% - 65px)', padding: '16px', overflow: 'hidden' }}>
+            <ul style={{ flex: 1, overflowY: 'auto', listStyle: 'none', padding: 0 }}>
+              {oppSummary.length === 0 ? (
+                <li className="gm-empty-state">No Opposition summary points yet.</li>
+              ) : (
+                oppSummary.map((point, i) => (
+                  <li key={i} className="gm-point-item gm-point-ai">
+                    <span className="gm-point-bullet">▸</span>
+                    {point}
+                  </li>
+                ))
+              )}
+            </ul>
+            <div className="team-avatars">
+              {allSpeakers.filter(p => p.team === 'opp').map((spk, i) => (
+                <div className={`avatar-box ${spk.name === currentSpeaker.name ? 'active-speaker' : ''}`} key={i}>
+                  <img src={spk.avatar} alt={spk.name} />
+                  <div className="role-label">{spk.role}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {showCaptions && currentLine && (
+          <div className="caption-line global-caption">
+            <strong>{isUserTurn ? 'You' : currentSpeaker.role}: </strong>
+            {currentLine.split(' ').map((word, idx) => renderWord(word, idx, highlightedWordIndex))}
+          </div>
+        )}
+
+        <div className="control-bar-wrapper">
+          <div className="control-bar">
+            <button className={`circle-button ${!isMuted ? 'speaking' : 'ready'}`} disabled style={{ pointerEvents: 'none' }}>
+              {isMuted ? <MicOff size={20} /> : <Mic size={20} />}
+            </button>
+
+            <button onClick={() => setShowTranscript(t => !t)} className={`circle-button ${showTranscript ? 'active' : ''}`}>
+              <FileText size={20} color="#fff" />
+            </button>
+
+            <button onClick={() => setShowCaptions(c => !c)} className={`circle-button ${showCaptions ? 'active' : ''}`}>CC</button>
             
-              <div className="caption-line">
-                {currentLine.split(" ").map((word, idx) => renderWord(word, idx, highlightedWordIndex))}
-              </div>
-           
-          )}
-          {isUserTurn && <div className="your-turn">🎙️ Your turn to speak</div>}
+            <button onClick={toggleNoteTaker} className={`circle-button ${isNoteTakerOpen ? 'active' : ''}`}>
+              <Notebook size={20} />
+            </button>
+
+            {/* Voice Plan Toggle — in the control bar */}
+            <button
+              onClick={toggleVoicePlan}
+              className="circle-button"
+              title={`Voice: ${voicePlanDisplay} — click to switch`}
+              style={{
+                background: voicePlanDisplay === 'Pro' ? 'rgba(168,85,247,0.35)' : 'rgba(251,191,36,0.35)',
+                border: voicePlanDisplay === 'Pro' ? '1.5px solid #a855f7' : '1.5px solid #fbbf24',
+                color: voicePlanDisplay === 'Pro' ? '#c084fc' : '#fbbf24',
+                fontSize: '9px', fontWeight: 800, letterSpacing: '0.5px',
+                boxShadow: voicePlanDisplay === 'Pro' ? '0 0 8px rgba(168,85,247,0.4)' : '0 0 8px rgba(251,191,36,0.4)'
+              }}
+            >
+              {voicePlanDisplay === 'Pro' ? '⚡PRO' : '💡LITE'}
+            </button>
+
+            <button onClick={() => hangupclick()} className="circle-button hangup-button">
+              <PhoneOff size={20} color="#fff" />
+            </button>
+
+            <button className="circle-button" onClick={nextSpeaker} style={{ background: '#10b981' }} title="Next Speaker">
+              ➡️
+            </button>
+          </div>
         </div>
 
-        <div className="side right summary-box">
-          <h3>🟨 Opposition Summary</h3>
-          <div className="summary-scroll-container">
-            {oppSummary.map((point, i) => (
-              <div key={i} className="summary-point">{point}</div>
-            ))}
+        <div className={`note-taker-panel ${isNoteTakerOpen ? 'open' : ''}`}>
+          <div className="note-taker-header">
+            <h2>Notes</h2>
+            <button onClick={toggleNoteTaker} className="close-note-taker-btn" aria-label="Close note taker">
+              <Notebook size={18} />
+            </button>
           </div>
-          <div className="team-avatars">
-            {allSpeakers.filter(p => p.team === 'opp').map((spk, i) => (
-              <div className={`avatar-box ${spk.name === currentSpeaker.name ? 'active-speaker' : ''}`} key={i}>
-                <img src={spk.avatar} alt={spk.name} />
-                <div className="role-label">{spk.role}</div>
-              </div>
-            ))}
-          </div>
+          <textarea
+            className="note-taker-textarea"
+            style={{ height: '70%' }}
+            value={notes}
+            readOnly
+            placeholder="No notes available..."
+          />
         </div>
       </div>
-<center>
-      <div className="control-bar">
-        <button className={`circle-btn ${!isMuted ? 'speaking' : ''}`} disabled>
-          {isMuted ? <MicOff size={20} /> : <Mic size={20} />}
-        </button>
-        {/* <button className="circle-btn">
-          <FileText size={20} />
-        </button> */}
-        <button
-  className="circle-btn"
-  onClick={() => setShowCaptions(!showCaptions)}
->
-  {showCaptions ? (
-    <FaClosedCaptioning className="text-2xl" />
-  ) : (
-    <FaRegClosedCaptioning className="text-2xl" />
-  )}
-</button><button className="circle-btn" onClick={toggleNoteTaker}>
-  <FaRegFileAlt className="text-2xl" />
-</button>
-        
-        <button className="circle-btn hangup" onClick={() => hangupclick()}>
-          <PhoneOff size={20} />
-        </button>
-        <button className="next-btn" onClick={nextSpeaker}>
-          ➡️ Next
-        </button>
-      </div>
-      </center>
+    );
+  }
 
+  // Mobile View
+  return (
+    <div className="gm-container">
+      {/* ── TOPIC BAR ── */}
+      <div className="gm-topic-bar">
+        <span className="gm-topic-label">Topic</span>
+        <span className="gm-topic-text">{topic}</span>
+        {userStance && (
+          <span className="gm-stance-badge">
+            You: {userStance.charAt(0).toUpperCase() + userStance.slice(1)} ({userRole})
+          </span>
+        )}
+        {/* Voice plan toggled from NavigationBar only */}
+      </div>
+
+      {/* ── MAIN ROW ── */}
+      <div className="gm-main-row">
+        {/* LEFT: Video Stage */}
+        <div className="gm-stage">
+          <div className="gm-video-wrapper">
+            {!isUserTurn ? (
+              <video ref={videoRef} className="gm-video" src={currentSpeaker.video} loop muted playsInline />
+            ) : (
+              <div className="gm-video" style={{ position: 'relative', overflow: 'hidden' }}>
+                <img
+                  src={currentSpeaker.avatar}
+                  alt={currentSpeaker.name}
+                  style={{
+                    width: '100%',
+                    height: '100%',
+                    objectFit: 'cover'
+                  }}
+                />
+                <div style={{
+                  position: 'absolute',
+                  bottom: '8px',
+                  right: '8px',
+                  background: 'rgba(16, 185, 129, 0.95)',
+                  borderRadius: '50%',
+                  width: '32px',
+                  height: '32px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  boxShadow: '0 2px 8px rgba(16, 185, 129, 0.4)',
+                  animation: 'pulse-mic 1.5s infinite',
+                  zIndex: 20
+                }}>
+                  <Mic size={16} color="#fff" />
+                </div>
+              </div>
+            )}
+            {!isUserTurn && isSpeaking && <div className="gm-speaking-ring" />}
+            {isUserTurn && <div className="gm-speaking-ring" />}
+          </div>
+          
+          <div style={{ position: 'absolute', top: '10px', left: '10px', background: 'rgba(0,0,0,0.7)', padding: '4px 8px', borderRadius: '6px', fontSize: '10px', display: 'flex', flexDirection: 'column', gap: '2px', zIndex: 10 }}>
+            <span style={{ fontWeight: 'bold' }}>{currentSpeaker.name}</span>
+            <span style={{ color: '#c084fc' }}>{currentSpeaker.role}</span>
+            <span style={{ color: '#fbbf24' }}>⏱️ {timeLeft}s</span>
+          </div>
+        </div>
+
+        {/* MIDDLE: Info panel */}
+        <div className="gm-side-panel">
+          <div className="gm-info-section" style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
+            <div className="gm-info-title">
+              {oppositeTeamLabel} Summary
+            </div>
+            <ul className="gm-points-list" style={{ flex: 1, overflowY: 'auto', marginBottom: '8px' }}>
+              {oppositeSummaryPoints.length === 0 ? (
+                <li className="gm-empty-state">No points yet.</li>
+              ) : (
+                oppositeSummaryPoints.map((pt, i) => (
+                  <li key={i} className={`gm-point-item ${oppositeTeam === 'opp' ? 'gm-point-ai' : ''}`} style={{ fontSize: '10px', padding: '6px 8px' }}>
+                    <span className="gm-point-bullet">▸</span>
+                    {pt}
+                  </li>
+                ))
+              )}
+            </ul>
+            <div className="team-avatars" style={{ display: 'flex', justifyContent: 'space-around', gap: '4px', borderTop: '1px solid rgba(255,255,255,0.08)', paddingTop: '6px', flexShrink: 0 }}>
+              {oppositeSpeakers.map((spk, i) => (
+                <div className={`avatar-box ${spk.name === currentSpeaker.name ? 'active-speaker' : ''}`} key={i} style={{ transform: 'none' }}>
+                  <img src={spk.avatar} alt={spk.name} style={{ width: '32px', height: '32px', border: oppositeTeam === 'opp' ? '2px solid #a855f7' : '2px solid #34d399', margin: 0 }} />
+                  <div className="role-label" style={{ fontSize: '8px', padding: '1px 3px', minWidth: 'unset', marginTop: '2px' }}>{spk.role}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+          
+          <div className="gm-panel-controls">
+            <button className={`gm-ctrl-btn ${!isMuted ? 'gm-btn-active' : 'gm-btn-muted'}`} title="Mic status" style={{ width: '34px', height: '34px' }} disabled>
+              {isMuted ? <MicOff size={14} /> : <Mic size={14} />}
+            </button>
+            <button onClick={() => setShowCaptions(!showCaptions)} className={`gm-ctrl-btn ${showCaptions ? 'gm-btn-active' : ''}`} title="Captions" style={{ width: '34px', height: '34px' }}>
+              <MessageSquare size={14} />
+            </button>
+            <button onClick={toggleNoteTaker} className="gm-ctrl-btn" title="Toggle Notes" style={{ width: '34px', height: '34px' }}>
+              <Notebook size={14} />
+            </button>
+            {/* Voice Plan Toggle — mobile 3v3 */}
+            <button
+              onClick={toggleVoicePlan}
+              className="gm-ctrl-btn"
+              title={`Voice: ${voicePlanDisplay}`}
+              style={{
+                width: 'auto', height: '34px', padding: '0 6px',
+                background: voicePlanDisplay === 'Pro' ? 'rgba(168,85,247,0.35)' : 'rgba(251,191,36,0.35)',
+                border: voicePlanDisplay === 'Pro' ? '1.5px solid #a855f7' : '1.5px solid #fbbf24',
+                color: voicePlanDisplay === 'Pro' ? '#c084fc' : '#fbbf24',
+                fontSize: '9px', fontWeight: 800
+              }}
+            >
+              {voicePlanDisplay === 'Pro' ? '⚡PRO' : '💡LITE'}
+            </button>
+          </div>
+        </div>
+
+        {/* RIGHT: Sidebar */}
+        <div className="gm-sidebar">
+          <button onClick={nextSpeaker} className="gm-nav-btn" style={{ background: 'rgba(16,185,129,0.2)', borderColor: 'rgba(16,185,129,0.5)', color: '#34d399' }} title="Next Speaker">
+            <span style={{ fontSize: '14px', fontWeight: 'bold' }}>➡️</span>
+          </button>
+          {/* Voice Plan Toggle — mobile sidebar */}
+          <button
+            onClick={toggleVoicePlan}
+            className="gm-nav-btn"
+            title={`Voice: ${voicePlanDisplay}`}
+            style={{
+              width: 'auto', padding: '0 6px',
+              background: voicePlanDisplay === 'Pro' ? 'rgba(168,85,247,0.2)' : 'rgba(251,191,36,0.2)',
+              borderColor: voicePlanDisplay === 'Pro' ? 'rgba(168,85,247,0.5)' : 'rgba(251,191,36,0.5)',
+              color: voicePlanDisplay === 'Pro' ? '#c084fc' : '#fbbf24',
+              fontSize: '9px', fontWeight: 800
+            }}
+          >
+            {voicePlanDisplay === 'Pro' ? '⚡PRO' : '💡LITE'}
+          </button>
+          <button onClick={() => navigate('/overview')} className="gm-nav-btn" title="Dashboard">
+            <Home size={17} />
+          </button>
+          <button onClick={toggleNoteTaker} className="gm-nav-btn" title="Notes">
+            <Notebook size={17} />
+          </button>
+          <button onClick={() => hangupclick()} className="gm-nav-btn" style={{ background: 'rgba(220,38,38,0.2)', borderColor: 'rgba(220,38,38,0.5)' }} title="End">
+            <PhoneOff size={17} />
+          </button>
+        </div>
+      </div>
+
+      {/* ── MOBILE CAPTION BAR ── */}
+      {showCaptions && (
+        <div className="gm-caption-bar">
+          <div className="gm-caption-overlay">
+            {currentLine && (
+              <div className={`gm-caption-line ${isUserTurn ? 'gm-caption-user' : 'gm-caption-ai'}`}>
+                <span className="gm-caption-speaker">{isUserTurn ? 'You' : currentSpeaker.role}</span>
+                <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {currentLine.split(" ").map((word, idx) => renderWord(word, idx, highlightedWordIndex))}
+                </span>
+              </div>
+            )}
+            {!currentLine && (
+              <span style={{ color: 'rgba(255,255,255,0.28)', fontSize: '11px' }}>
+                {isUserTurn ? 'Speak now...' : 'Waiting for speaker...'}
+              </span>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Note Taker Panel (Mobile Overlay) */}
       <div className={`note-taker-panel ${isNoteTakerOpen ? 'open' : ''}`}>
         <div className="note-taker-header">
           <h2>Notes</h2>
-          <button
-            onClick={toggleNoteTaker}
-            className="close-note-taker-btn"
-            aria-label="Close note taker"
-          >
+          <button onClick={toggleNoteTaker} className="close-note-taker-btn" aria-label="Close note taker">
             <Notebook size={18} />
           </button>
         </div>
         <textarea
           className="note-taker-textarea"
-          style={{ height: '70%' }}
           value={notes}
           readOnly
           placeholder="No notes available..."

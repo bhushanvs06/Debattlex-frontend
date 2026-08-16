@@ -13,6 +13,7 @@ const Ranking = () => {
   const [rankings, setRankings] = useState([]);
   const [currentUser, setCurrentUser] = useState(null);
   const [error, setError] = useState(null);
+  // eslint-disable-next-line no-unused-vars
   const [hoveredRow, setHoveredRow] = useState(null);
 
   useEffect(() => {
@@ -82,9 +83,9 @@ const Ranking = () => {
             {/* PODIUM */}
             <div className="podium-wrap" style={{ display:"flex", alignItems:"flex-end", justifyContent:"center", gap:"clamp(8px,2vw,20px)", marginBottom:"clamp(32px,5vw,52px)", animation:"fadeUp 0.6s ease 0.1s both" }}>
               {getPodiumOrder(rankings.slice(0, 3)).map((user) => {
-                const i = rankings.findIndex(u => u.displayName === user.displayName);
+                const i = rankings.findIndex(u => u.email === user.email);
                 const m = MEDALS[i];
-                const isMe = user.displayName === currentUser?.displayName;
+                const isMe = user.email === currentUser?.email;
                 const baseH = [130, 100, 80][i];
 
                 return (
@@ -128,7 +129,7 @@ const Ranking = () => {
                 <div style={{ display:"flex", flexDirection:"column", gap:7 }}>
                   {rankings.slice(3).map((user, i) => {
                     const rank = i + 4;
-                    const isMe = user.displayName === currentUser?.displayName;
+                    const isMe = user.email === currentUser?.email;
                     return (
                       <div key={rank} className="rank-row"
                         onMouseEnter={() => setHoveredRow(rank)}

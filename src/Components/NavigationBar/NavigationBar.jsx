@@ -7,10 +7,10 @@ const NAV_ITEMS = [
     path: '/overview',
     icon: (
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="20" height="20">
-        <rect x="3" y="3" width="7" height="7" rx="1.5"/>
-        <rect x="14" y="3" width="7" height="7" rx="1.5"/>
-        <rect x="3" y="14" width="7" height="7" rx="1.5"/>
-        <rect x="14" y="14" width="7" height="7" rx="1.5"/>
+        <rect x="3" y="3" width="7" height="7" rx="1.5" />
+        <rect x="14" y="3" width="7" height="7" rx="1.5" />
+        <rect x="3" y="14" width="7" height="7" rx="1.5" />
+        <rect x="14" y="14" width="7" height="7" rx="1.5" />
       </svg>
     ),
   },
@@ -19,7 +19,7 @@ const NAV_ITEMS = [
     path: '/overview/playground',
     icon: (
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="20" height="20">
-        <polygon points="5,3 19,12 5,21"/>
+        <polygon points="5,3 19,12 5,21" />
       </svg>
     ),
   },
@@ -28,7 +28,27 @@ const NAV_ITEMS = [
     path: '/overview/ranking',
     icon: (
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="20" height="20">
-        <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01z"/>
+        <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01z" />
+      </svg>
+    ),
+  },
+  {
+    label: 'Mentor',
+    path: '/overview/mentor',
+    icon: (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="20" height="20">
+        <path d="M22 10L12 5 2 10l10 5 10-5z" />
+        <path d="M6 12v5c0 1.5 2.7 3 6 3s6-1.5 6-3v-5" />
+      </svg>
+    ),
+  },
+  {
+    label: 'Profile',
+    path: '/overview/profile',
+    icon: (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="20" height="20">
+        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+        <circle cx="12" cy="7" r="4" />
       </svg>
     ),
   },
@@ -37,7 +57,7 @@ const NAV_ITEMS = [
     path: '/overview/feedbackpage',
     icon: (
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="20" height="20">
-        <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+        <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
       </svg>
     ),
   },
@@ -46,10 +66,10 @@ const NAV_ITEMS = [
     path: '/overview/hangout',
     icon: (
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="20" height="20">
-        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
-        <circle cx="9" cy="7" r="4"/>
-        <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
-        <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+        <circle cx="9" cy="7" r="4" />
+        <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+        <path d="M16 3.13a4 4 0 0 1 0 7.75" />
       </svg>
     ),
   },
@@ -57,9 +77,9 @@ const NAV_ITEMS = [
 
 const LOGOUT_ICON = (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="18" height="18">
-    <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
-    <polyline points="16,17 21,12 16,7"/>
-    <line x1="21" y1="12" x2="9" y2="12"/>
+    <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+    <polyline points="16,17 21,12 16,7" />
+    <line x1="21" y1="12" x2="9" y2="12" />
   </svg>
 );
 
@@ -72,6 +92,15 @@ const NavigationBar = ({ onWidthChange }) => {
   const [collapsed, setCollapsed] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   const [hoveredItem, setHoveredItem] = useState(null);
+  const [voicePlan, setVoicePlan] = useState(() => localStorage.getItem('voicePlan') || 'Pro');
+
+  const toggleVoicePlan = () => {
+    const newVal = voicePlan === 'Pro' ? 'Lite' : 'Pro';
+    setVoicePlan(newVal);
+    localStorage.setItem('voicePlan', newVal);
+    // Dispatch synthetic storage event so same-tab listeners (debate views) sync immediately
+    window.dispatchEvent(new StorageEvent('storage', { key: 'voicePlan', newValue: newVal }));
+  };
 
   useEffect(() => {
     const check = () => {
@@ -87,6 +116,7 @@ const NavigationBar = ({ onWidthChange }) => {
     if (onWidthChange) {
       onWidthChange(isMobile ? 0 : collapsed ? SIDEBAR_COLLAPSED_WIDTH : SIDEBAR_EXPANDED_WIDTH);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [collapsed, isMobile]);
 
   const activeNav = NAV_ITEMS.find(
@@ -140,6 +170,20 @@ const NavigationBar = ({ onWidthChange }) => {
               </button>
             );
           })}
+          <button className="mob-tab" onClick={toggleVoicePlan}>
+            <span className="mob-icon" style={{
+              color: voicePlan === 'Pro' ? '#c084fc' : '#fbbf24',
+              filter: voicePlan === 'Pro' ? 'drop-shadow(0 0 3px rgba(168,85,247,.6))' : 'drop-shadow(0 0 3px rgba(251,191,36,.6))'
+            }}>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="18" height="18">
+                <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
+                <path d="M19.07 4.93a10 10 0 0 1 0 14.14" />
+              </svg>
+            </span>
+            <span style={{ fontSize: '9px', fontWeight: 700, color: voicePlan === 'Pro' ? '#c084fc' : '#fbbf24', textTransform: 'uppercase' }}>
+              {voicePlan} Voice
+            </span>
+          </button>
           <button className="mob-tab" onClick={handleLogout}>
             <span className="mob-icon" style={{ color: 'rgba(239,150,150,.7)' }}>{LOGOUT_ICON}</span>
             <span style={{ fontSize: '10px', fontWeight: 500, color: 'rgba(239,150,150,.7)' }}>Logout</span>
@@ -198,77 +242,77 @@ const NavigationBar = ({ onWidthChange }) => {
         flexShrink: 0,
       }}>
         {/* Ambient orbs */}
-        <div style={{ position:'absolute', inset:0, pointerEvents:'none', overflow:'hidden', borderRadius:'inherit' }}>
-          <div style={{ position:'absolute', top:'8%', left:'15%', width:100, height:100, borderRadius:'50%', background:'radial-gradient(circle, rgba(168,85,247,.3) 0%, transparent 70%)', animation:'orb1 7s infinite ease-in-out' }} />
-          <div style={{ position:'absolute', bottom:'25%', right:'5%', width:70, height:70, borderRadius:'50%', background:'radial-gradient(circle, rgba(99,102,241,.25) 0%, transparent 70%)', animation:'orb2 9s infinite ease-in-out' }} />
+        <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', overflow: 'hidden', borderRadius: 'inherit' }}>
+          <div style={{ position: 'absolute', top: '8%', left: '15%', width: 100, height: 100, borderRadius: '50%', background: 'radial-gradient(circle, rgba(168,85,247,.3) 0%, transparent 70%)', animation: 'orb1 7s infinite ease-in-out' }} />
+          <div style={{ position: 'absolute', bottom: '25%', right: '5%', width: 70, height: 70, borderRadius: '50%', background: 'radial-gradient(circle, rgba(99,102,241,.25) 0%, transparent 70%)', animation: 'orb2 9s infinite ease-in-out' }} />
         </div>
 
         {/* HEADER */}
-        <div style={{ padding: collapsed ? '20px 0 16px' : '22px 16px 16px', display:'flex', alignItems:'center', justifyContent: collapsed ? 'center' : 'space-between', flexShrink:0, position:'relative', zIndex:1 }}>
+        <div style={{ padding: collapsed ? '20px 0 16px' : '22px 16px 16px', display: 'flex', alignItems: 'center', justifyContent: collapsed ? 'center' : 'space-between', flexShrink: 0, position: 'relative', zIndex: 1 }}>
           {collapsed ? (
             <div
-  style={{
-    width: 42,
-    height: 42,
-    borderRadius: 12,
-    background: "#0f0f13",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    boxShadow: "0 0 18px rgba(147,51,234,0.45)",
-    border: "1px solid rgba(168,85,247,0.25)",
-    cursor: "pointer",
-    transition: "all 0.25s ease"
-  }}
-  onClick={() => setCollapsed(false)}
->
-  <img
-    src="/logo.png"
-    alt="Debattlex"
-    style={{
-      width: "75%",
-      height: "75%",
-      objectFit: "contain",
-      filter: "drop-shadow(0 0 8px rgba(168,85,247,0.7))"
-    }}
-  />
-</div>
+              style={{
+                width: 42,
+                height: 42,
+                borderRadius: 12,
+                background: "#0f0f13",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                boxShadow: "0 0 18px rgba(147,51,234,0.45)",
+                border: "1px solid rgba(168,85,247,0.25)",
+                cursor: "pointer",
+                transition: "all 0.25s ease"
+              }}
+              onClick={() => setCollapsed(false)}
+            >
+              <img
+                src="/logo.png"
+                alt="Debattlex"
+                style={{
+                  width: "75%",
+                  height: "75%",
+                  objectFit: "contain",
+                  filter: "drop-shadow(0 0 8px rgba(168,85,247,0.7))"
+                }}
+              />
+            </div>
           ) : (
             <>
               <div>
-                <div style={{ fontFamily:"'Cinzel',serif", fontWeight:900, fontSize:18, background:'linear-gradient(90deg,#a855f7 0%,#e879f9 40%,#818cf8 70%,#a855f7 100%)', backgroundSize:'200% auto', WebkitBackgroundClip:'text', WebkitTextFillColor:'transparent', animation:'shimmerLogo 3s linear infinite', letterSpacing:'1px' }}>
+                <div style={{ fontFamily: "'Cinzel',serif", fontWeight: 900, fontSize: 18, background: 'linear-gradient(90deg,#a855f7 0%,#e879f9 40%,#818cf8 70%,#a855f7 100%)', backgroundSize: '200% auto', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', animation: 'shimmerLogo 3s linear infinite', letterSpacing: '1px' }}>
                   DEBATTLEX
                 </div>
-                <div style={{ fontSize:9, color:'rgba(168,85,247,.55)', letterSpacing:'3px', marginTop:1, fontFamily:"'Cinzel',serif" }}>ARENA</div>
+                <div style={{ fontSize: 9, color: 'rgba(168,85,247,.55)', letterSpacing: '3px', marginTop: 1, fontFamily: "'Cinzel',serif" }}>ARENA</div>
               </div>
-              <button className="nb-chevron" style={{ width:28, height:28 }} onClick={() => setCollapsed(true)}>
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" width="12" height="12"><path d="M15 18l-6-6 6-6"/></svg>
+              <button className="nb-chevron" style={{ width: 28, height: 28 }} onClick={() => setCollapsed(true)}>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" width="12" height="12"><path d="M15 18l-6-6 6-6" /></svg>
               </button>
             </>
           )}
         </div>
 
         {/* Divider */}
-        <div style={{ margin: collapsed ? '0 10px 12px' : '0 14px 12px', height:1, background:'linear-gradient(90deg,transparent,rgba(168,85,247,.35),transparent)', animation:'divPulse 3s infinite', flexShrink:0 }} />
+        <div style={{ margin: collapsed ? '0 10px 12px' : '0 14px 12px', height: 1, background: 'linear-gradient(90deg,transparent,rgba(168,85,247,.35),transparent)', animation: 'divPulse 3s infinite', flexShrink: 0 }} />
 
         {/* NAV */}
-        <nav style={{ flex:1, padding: collapsed ? '0 8px' : '0 10px', display:'flex', flexDirection:'column', gap:3, overflowY:'auto', overflowX:'visible', position:'relative', zIndex:1 }}>
+        <nav style={{ flex: 1, padding: collapsed ? '0 8px' : '0 10px', display: 'flex', flexDirection: 'column', gap: 3, overflowY: 'auto', overflowX: 'visible', position: 'relative', zIndex: 1 }}>
           {NAV_ITEMS.map((item, idx) => {
             const isActive = activeNav === item.label;
             return (
               <button
                 key={item.label}
                 className={`nb-item${isActive ? ' active' : ''}`}
-                style={{ padding: collapsed ? '12px 0' : '11px 12px', justifyContent: collapsed ? 'center' : 'flex-start', gap:11, animation:`staggerIn .35s ease ${idx*55}ms both` }}
+                style={{ padding: collapsed ? '12px 0' : '11px 12px', justifyContent: collapsed ? 'center' : 'flex-start', gap: 11, animation: `staggerIn .35s ease ${idx * 55}ms both` }}
                 onClick={() => handleNav(item)}
                 onMouseEnter={() => setHoveredItem(item.label)}
                 onMouseLeave={() => setHoveredItem(null)}
               >
                 {isActive && <div className="nb-active-line" />}
-                <span className="nb-icon-wrap" style={{ flexShrink:0, display:'flex' }}>{item.icon}</span>
+                <span className="nb-icon-wrap" style={{ flexShrink: 0, display: 'flex' }}>{item.icon}</span>
                 {!collapsed && <span>{item.label}</span>}
                 {collapsed && isActive && (
-                  <div style={{ position:'absolute', bottom:5, left:'50%', transform:'translateX(-50%)', width:16, height:3, borderRadius:99, background:'linear-gradient(90deg,#a855f7,#6366f1)', boxShadow:'0 0 6px #a855f7' }} />
+                  <div style={{ position: 'absolute', bottom: 5, left: '50%', transform: 'translateX(-50%)', width: 16, height: 3, borderRadius: 99, background: 'linear-gradient(90deg,#a855f7,#6366f1)', boxShadow: '0 0 6px #a855f7' }} />
                 )}
                 {collapsed && hoveredItem === item.label && <div className="nb-tooltip">{item.label}</div>}
               </button>
@@ -277,13 +321,65 @@ const NavigationBar = ({ onWidthChange }) => {
         </nav>
 
         {/* Divider */}
-        <div style={{ margin: collapsed ? '12px 10px 10px' : '12px 14px 10px', height:1, background:'linear-gradient(90deg,transparent,rgba(168,85,247,.25),transparent)', animation:'divPulse 3s infinite 1s', flexShrink:0 }} />
+        <div style={{ margin: collapsed ? '12px 10px 10px' : '12px 14px 10px', height: 1, background: 'linear-gradient(90deg,transparent,rgba(168,85,247,.25),transparent)', animation: 'divPulse 3s infinite 1s', flexShrink: 0 }} />
+
+        {/* VOICE PLAN TOGGLE */}
+        <div style={{ padding: collapsed ? '0 8px' : '0 10px', marginBottom: 8, flexShrink: 0, position: 'relative', zIndex: 1 }}>
+          <button
+            onClick={toggleVoicePlan}
+            className="nb-item"
+            style={{
+              padding: collapsed ? '12px 0' : '11px 12px',
+              justifyContent: collapsed ? 'center' : 'flex-start',
+              gap: 11,
+              border: '1px dashed rgba(168,85,247,.25)',
+              background: 'rgba(168,85,247,.03)'
+            }}
+            onMouseEnter={() => setHoveredItem('voiceplan')}
+            onMouseLeave={() => setHoveredItem(null)}
+          >
+            <span style={{
+              flexShrink: 0,
+              display: 'flex',
+              color: voicePlan === 'Pro' ? '#c084fc' : '#fbbf24',
+              filter: voicePlan === 'Pro' ? 'drop-shadow(0 0 4px rgba(168,85,247,.7))' : 'drop-shadow(0 0 4px rgba(251,191,36,.7))'
+            }}>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="20" height="20">
+                <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
+                <path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07" />
+              </svg>
+            </span>
+            {!collapsed && (
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
+                <span>Voice Plan</span>
+                <span style={{
+                  fontSize: '9px',
+                  fontWeight: 800,
+                  padding: '2px 6px',
+                  borderRadius: '6px',
+                  background: voicePlan === 'Pro' ? 'rgba(168,85,247,0.25)' : 'rgba(251,191,36,0.25)',
+                  color: voicePlan === 'Pro' ? '#c084fc' : '#fbbf24',
+                  border: voicePlan === 'Pro' ? '1px solid rgba(168,85,247,0.4)' : '1px solid rgba(251,191,36,0.4)',
+                  letterSpacing: '1px'
+                }}>
+                  {voicePlan.toUpperCase()}
+                </span>
+              </div>
+            )}
+            {collapsed && hoveredItem === 'voiceplan' && (
+              <div className="nb-tooltip">Voice: {voicePlan}</div>
+            )}
+          </button>
+        </div>
+
+        {/* Divider */}
+        <div style={{ margin: collapsed ? '0 10px 10px' : '0 14px 10px', height: 1, background: 'linear-gradient(90deg,transparent,rgba(168,85,247,.25),transparent)', animation: 'divPulse 3s infinite 1s', flexShrink: 0 }} />
 
         {/* LOGOUT */}
-        <div style={{ padding: collapsed ? '0 8px 20px' : '0 10px 20px', flexShrink:0, position:'relative', zIndex:1 }}>
+        <div style={{ padding: collapsed ? '0 8px 20px' : '0 10px 20px', flexShrink: 0, position: 'relative', zIndex: 1 }}>
           <button
             className="nb-logout"
-            style={{ gap: collapsed ? 0 : 9, padding: collapsed ? '11px 0' : '11px 14px', justifyContent:'center' }}
+            style={{ gap: collapsed ? 0 : 9, padding: collapsed ? '11px 0' : '11px 14px', justifyContent: 'center' }}
             onClick={handleLogout}
             onMouseEnter={() => setHoveredItem('logout')}
             onMouseLeave={() => setHoveredItem(null)}

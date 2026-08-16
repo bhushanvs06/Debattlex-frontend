@@ -2,6 +2,8 @@ import React, { useEffect, useState } from "react";
 import axios from "axios";
 import { useNavigate } from "react-router-dom";
 import "./MyDebate.css";
+import { auth } from '../../../config/firebase';
+import { signOut } from 'firebase/auth';
 
 function MyDebates({ userId }) {
   const [debates, setDebates] = useState([]);
@@ -25,8 +27,14 @@ function MyDebates({ userId }) {
     navigate(route);
   };
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    try {
+      await signOut(auth);
+    } catch (err) {
+      console.error("Firebase signOut error:", err);
+    }
     localStorage.removeItem("userEmail");
+    localStorage.removeItem("token");
     navigate("/login");
   };
 

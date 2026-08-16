@@ -140,7 +140,7 @@
   /* margin-left:25%; */
   /* display: flex; */
   align-items: flex-start;
-  
+
 }
 
 /* Header area */
@@ -165,7 +165,7 @@
   gap: 1.5rem;
 }
 
-.avatar-container {
+.avatar-containerdash {
   position: relative;
 }
 
@@ -266,7 +266,7 @@
   padding: 2rem;
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.45);
   transition: transform 0.3s ease;
-  
+
 }
 
 .chart-container:hover {
@@ -372,17 +372,39 @@
   justify-content: center;
 }
 
-.activity-icon.win  { background: rgba(168, 85, 247, 0.18); color: var(--primary-400); }
-.activity-icon.loss { background: rgba(239, 68, 68, 0.15); color: #f87171; }
+.activity-icon.win {
+  background: rgba(168, 85, 247, 0.18);
+  color: var(--primary-400);
+}
 
-.activity-title { color: var(--text-light); font-weight: 500; }
-.activity-time  { color: var(--text-muted); font-size: 0.875rem; }
+.activity-icon.loss {
+  background: rgba(239, 68, 68, 0.15);
+  color: #f87171;
+}
+
+.activity-title {
+  color: var(--text-light);
+  font-weight: 500;
+}
+
+.activity-time {
+  color: var(--text-muted);
+  font-size: 0.875rem;
+}
 
 /* ============  Responsive tweaks  ============ */
 @media (max-width: 1024px) {
-  .sidebar { width: 240px; }
-  .main-content { margin-left: 240px; }
-  .stats-grid { grid-template-columns: 1fr; }
+  .sidebar {
+    width: 240px;
+  }
+
+  .main-content {
+    margin-left: 240px;
+  }
+
+  .stats-grid {
+    grid-template-columns: 1fr;
+  }
 }
 
 @media (max-width: 768px) {
@@ -390,10 +412,18 @@
     transform: translateX(-100%);
     transition: transform 0.3s ease;
   }
-  .sidebar.open { transform: translateX(0); }
 
-  .main-content { margin-left: 0; }
-  .debate-dashboard { padding: 1rem; }
+  .sidebar.open {
+    transform: translateX(0);
+  }
+
+  .main-content {
+    margin-left: 0;
+  }
+
+  .debate-dashboard {
+    padding: 1rem;
+  }
 
   .dashboard-header {
     flex-direction: column;
@@ -402,24 +432,50 @@
     padding: 1.5rem;
   }
 
-  .quick-stats { justify-content: center; }
-  .user-name    { font-size: 1.5rem; }
-  .chart-container { padding: 1.5rem; }
+  .quick-stats {
+    justify-content: center;
+  }
+
+  .user-name {
+    font-size: 1.5rem;
+  }
+
+  .chart-container {
+    padding: 1.5rem;
+  }
 }
 
 @media (max-width: 480px) {
-  .dashboard-header { padding: 1rem; }
-  .quick-stats { gap: 1rem; }
-  .user-avatar { width: 60px; height: 60px; }
-  .start-debate-btn { padding: 0.75rem 1.5rem; font-size: 1rem; }
+  .dashboard-header {
+    padding: 1rem;
+  }
+
+  .quick-stats {
+    gap: 1rem;
+  }
+
+  .user-avatar {
+    width: 60px;
+    height: 60px;
+  }
+
+  .start-debate-btn {
+    padding: 0.75rem 1.5rem;
+    font-size: 1rem;
+  }
 }
+
 /* Find and change these: */
 .app-container {
-  display: flex;     /* keep this */
-  margin-left: 0;    /* remove any margin-left here */
+  display: flex;
+  /* keep this */
+  margin-left: 0;
+  /* remove any margin-left here */
 }
 
 .main-content {
-  margin-left: 0;    /* remove — was probably set to ~260px for the old sidebar */
-  width: 100%;       /* add this */
+  margin-left: 0;
+  /* remove — was probably set to ~260px for the old sidebar */
+  width: 100%;
+  /* add this */
 }

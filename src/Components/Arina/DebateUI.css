@@ -533,80 +533,242 @@ body::before {
   to { transform: translateX(0); opacity: 1; }
 }
 
-/* Responsive Design */
-@media screen and (max-width: 1024px) {
+/* ============================================================ */
+/*  MOBILE LANDSCAPE — compact 3v3 debate layout for phones      */
+/* ============================================================ */
+
+@media screen and (max-width: 980px) and (orientation: landscape) {
+  html, body, #root {
+    overflow: auto !important;
+  }
+
+  .debate-container {
+    padding: 6px 8px;
+    min-height: 100vh;
+    height: auto;
+    overflow-y: auto;
+  }
+
+  .top-bar {
+    flex-direction: row;
+    padding: 6px 12px;
+    margin-bottom: 6px;
+    font-size: 0.75rem;
+    border-radius: 10px;
+    gap: 8px;
+    min-height: unset;
+  }
+
+  .timer {
+    font-size: 0.85rem;
+    padding: 4px 10px;
+    border-radius: 8px;
+  }
+
+  .topic {
+    font-size: 0.7rem;
+    padding-left: 0.5em;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 50%;
+  }
+
+  .user-role {
+    font-size: 0.7rem;
+    white-space: nowrap;
+  }
+
   .debate-body {
-    gap: 16px;
+    flex-direction: row;
+    gap: 6px;
+    overflow: hidden;
+    flex: 1;
+    min-height: 0;
   }
-  
+
   .side {
-    width: 30%;
+    width: 22%;
+    padding: 8px;
+    border-radius: 10px;
+    overflow: hidden;
+    flex-shrink: 0;
   }
-  
+
+  .side h3 {
+    font-size: 0.7rem;
+    margin-bottom: 6px;
+    padding-bottom: 4px;
+  }
+
+  .summary-scroll-container {
+    max-height: 120px;
+    min-height: unset;
+    padding: 4px 6px;
+    border-radius: 6px;
+  }
+
+  .summary-point {
+    font-size: 0.65rem;
+    padding: 4px 6px;
+    margin-bottom: 4px;
+    border-radius: 5px;
+    line-height: 1.3;
+  }
+
+  .team-avatars {
+    margin-top: 6px;
+    gap: 4px;
+  }
+
+  .avatar-box img {
+    width: 28px;
+    height: 28px;
+  }
+
+  .role-label {
+    font-size: 0.55rem;
+    padding: 2px 4px;
+    min-width: unset;
+  }
+
   .center-speaker {
-    width: 40%;
+    width: 56%;
+    min-width: 0;
+  }
+
+  .center-speaker h2 {
+    font-size: 0.9rem;
+    margin: 4px 0;
+  }
+
+  .speaker-video {
+    max-height: 140px !important;
+    border-radius: 10px !important;
+  }
+
+  .speaker-avatar {
+    width: 70px;
+    height: 70px;
+    margin-bottom: 4px;
+  }
+
+  .role-tag {
+    font-size: 0.65rem;
+    padding: 3px 8px;
+    border-radius: 8px;
+  }
+
+  .caption-line {
+    margin-top: 6px;
+    padding: 6px 10px;
+    font-size: 0.75rem;
+    line-height: 1.4;
+    border-radius: 6px;
+    margin-left: 0;
+  }
+
+  .your-turn {
+    font-size: 0.75rem;
+    margin-top: 4px;
+  }
+
+  .control-bar {
+    margin-top: 6px;
+    padding: 4px 8px;
+    gap: 6px;
+    border-radius: 12px;
+  }
+
+  .circle-btn {
+    width: 36px;
+    height: 36px;
+    font-size: 0.8rem;
+  }
+
+  .next-btn {
+    padding: 6px 14px;
+    font-size: 0.75rem;
+    border-radius: 8px;
+  }
+
+  .voice-plan-toggle {
+    font-size: 0.65rem;
+    padding: 4px 8px;
+  }
+
+  .note-taker-panel {
+    width: 240px;
+  }
+
+  .note-taker-panel.open {
+    height: 180px;
   }
 }
 
-@media screen and (max-width: 768px) {
+/* ============================================================ */
+/*  MOBILE PORTRAIT — stacked fallback for 3v3                   */
+/* ============================================================ */
+
+@media screen and (max-width: 768px) and (orientation: portrait) {
   .debate-container {
     padding: 16px;
   }
-  
+
   .debate-body {
     flex-direction: column;
     gap: 16px;
   }
-  
+
   .side, .center-speaker {
     width: 100%;
   }
-  
+
   .speaker-avatar {
     width: 120px;
     height: 120px;
   }
-  
+
   .top-bar {
     flex-direction: column;
     gap: 12px;
     padding: 16px;
   }
-  
+
   .control-bar {
     flex-wrap: wrap;
     gap: 12px;
   }
-  
+
   .circle-btn {
     width: 48px;
     height: 48px;
   }
 }
 
-@media screen and (max-width: 480px) {
+@media screen and (max-width: 480px) and (orientation: portrait) {
   .debate-container {
     padding: 12px;
   }
-  
+
   .top-bar {
     font-size: 1.2rem;
   }
-  
+
   .speaker-avatar {
     width: 100px;
     height: 100px;
   }
-  
+
   .side {
     padding: 16px;
   }
-  
+
   .team-avatars {
     flex-wrap: wrap;
     gap: 12px;
   }
-  
+
   .avatar-box img {
     width: 40px;
     height: 40px;

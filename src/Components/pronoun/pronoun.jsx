@@ -1,8 +1,8 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import axios from 'axios';
 import YouTube from 'react-youtube';
 
-const url = process.env.REACT_APP_URL || 'https://dddeyksxjhwh4.cloudfront.net';
+const url = process.env.REACT_APP_URL || 'http://localhost:5000';
 
 const contentLibrary = [
   { id: 1, videoId: "Udap-5rVWeM", title: "Why does happiness slip away so easily?", speaker: "Jaya Row", meta: "795K views • Jan 2024", shortDesc: "Uncover the secret to lasting joy.", summary: "Why does happiness slip away so easily? Uncover the secret to lasting joy..." },
@@ -42,12 +42,14 @@ const PronunciationJudge = () => {
 
   const email = localStorage.getItem("userEmail");
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { if (email) fetchProgress(); }, []);
 
   useEffect(() => {
     if (result && selectedVideo && email && viewMode === "practice") {
       saveProgress(selectedVideo.videoId, result);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [result]);
 
   const fetchProgress = async () => {
@@ -146,7 +148,7 @@ const PronunciationJudge = () => {
     source.start();
     const rendered = await offline.startRendering();
 
-    const numChannels = 1, sampleRate = 16000, bytesPerSample = 2;
+    const sampleRate = 16000, bytesPerSample = 2;
     const dataLen = rendered.length * bytesPerSample;
     const buf = new ArrayBuffer(44 + dataLen);
     const view = new DataView(buf);
@@ -207,33 +209,78 @@ const PronunciationJudge = () => {
 
   const completedCount = Object.keys(userProgress).length;
   const goldCount = Object.values(userProgress).filter(p => {
-    const s = Math.round(((p.pronunciationScore||0) + (p.understandingScore||0))/2);
+    const s = Math.round(((p.pronunciationScore || 0) + (p.understandingScore || 0)) / 2);
     return s >= 85;
   }).length;
   const silverCount = Object.values(userProgress).filter(p => {
-    const s = Math.round(((p.pronunciationScore||0) + (p.understandingScore||0))/2);
+    const s = Math.round(((p.pronunciationScore || 0) + (p.understandingScore || 0)) / 2);
     return s >= 70 && s < 85;
   }).length;
   const bronzeCount = Object.values(userProgress).filter(p => {
-    const s = Math.round(((p.pronunciationScore||0) + (p.understandingScore||0))/2);
+    const s = Math.round(((p.pronunciationScore || 0) + (p.understandingScore || 0)) / 2);
     return s >= 50 && s < 70;
   }).length;
 
+  const mistakeMap = useMemo(() => {
+    const map = {};
+    (result?.mistakes || []).forEach(m => {
+      if (m.word) map[m.word.toLowerCase().replace(/[^a-z]/gi, '')] = m;
+    });
+    return map;
+  }, [result?.mistakes]);
+
   const renderHighlightedTranscription = () => {
-    if (!result?.transcription?.trim()) return <em style={{color:'#aaa'}}>No transcription available</em>;
+    if (!result?.transcription?.trim()) return <em style={{ color: '#aaa' }}>No transcription available</em>;
     const words = result.transcription.split(/\s+/);
-    const badWords = (result.mistakes || []).map(m => m.word?.toLowerCase());
     return words.map((w, i) => {
-      const isBad = badWords.includes(w.toLowerCase().replace(/[^a-z]/gi,''));
+      const cleaned = w.toLowerCase().replace(/[^a-z]/gi, '');
+      const mistake = mistakeMap[cleaned];
+      if (mistake) {
+        return (
+          <span key={i} style={{
+            display: 'inline-flex',
+            alignItems: 'baseline',
+            gap: '4px',
+            margin: '3px 2px',
+            position: 'relative'
+          }}>
+            <span style={{
+              color: '#ff6b6b',
+              fontWeight: 700,
+              background: 'rgba(255,107,107,0.15)',
+              borderBottom: '2.5px solid #ff6b6b',
+              padding: '2px 6px',
+              borderRadius: '4px',
+              cursor: 'help',
+              transition: 'background 0.2s'
+            }}
+            title={`Issue: ${mistake.issue || 'Mispronounced'}\nTip: ${mistake.how_to_correct || ''}`}
+            >
+              {w}
+            </span>
+            <span style={{
+              fontSize: '0.72em',
+              color: '#7df3c0',
+              background: 'rgba(125,243,192,0.1)',
+              border: '1px solid rgba(125,243,192,0.3)',
+              padding: '1px 7px',
+              borderRadius: '99px',
+              fontWeight: 600,
+              fontStyle: 'italic',
+              letterSpacing: '0.3px',
+              whiteSpace: 'nowrap',
+              lineHeight: 1.4
+            }}>
+              ✓ {mistake.correct_pronunciation || cleaned}
+            </span>
+          </span>
+        );
+      }
       return (
         <span key={i} style={{
-          color: isBad ? '#ff6b6b' : '#e0d4ff',
-          fontWeight: isBad ? 700 : 400,
-          textDecoration: isBad ? 'underline wavy #ff6b6b 2px' : 'none',
-          background: isBad ? 'rgba(255,107,107,0.12)' : 'transparent',
-          padding: '2px 5px',
-          borderRadius: '5px',
-          margin: '0 2px'
+          color: '#d4ccf0',
+          padding: '2px 3px',
+          margin: '0 1px'
         }}>
           {w}
         </span>
@@ -301,7 +348,7 @@ const PronunciationJudge = () => {
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '20px', maxWidth: '1400px', margin: '0 auto' }}>
             {contentLibrary.map(video => {
               const prog = userProgress[video.videoId];
-              const score = prog ? Math.round(((prog.pronunciationScore||0) + (prog.understandingScore||0))/2) : 0;
+              const score = prog ? Math.round(((prog.pronunciationScore || 0) + (prog.understandingScore || 0)) / 2) : 0;
               const badge = prog ? getBadge(score) : null;
               return (
                 <div
@@ -374,79 +421,249 @@ const PronunciationJudge = () => {
 
           {(viewMode === "previous" || result) ? (
             <div style={{ marginTop: '3rem' }}>
-              <div style={{ textAlign: 'center', marginBottom: '2.5rem' }}>
-                <div style={{ fontSize: '6rem', color: badge.color, textShadow: badge.glow, lineHeight: 1 }}>
+              {/* ── Hero Badge ── */}
+              <div style={{
+                textAlign: 'center',
+                marginBottom: '2.8rem',
+                padding: '2.5rem 1.5rem',
+                background: `radial-gradient(ellipse at 50% 0%, ${badge.color}18 0%, transparent 70%)`,
+                borderRadius: '24px'
+              }}>
+                <div style={{
+                  fontSize: '5.5rem',
+                  lineHeight: 1,
+                  filter: `drop-shadow(0 0 24px ${badge.color}66)`,
+                  animation: 'badgePulse 2s ease-in-out infinite'
+                }}>
                   {badge.emoji}
                 </div>
-                <div style={{ fontSize: '3.5rem', fontWeight: 800, color: badge.color, margin: '0.5rem 0' }}>
+                <div style={{
+                  fontSize: 'clamp(2.8rem, 5vw, 3.8rem)',
+                  fontWeight: 800,
+                  color: badge.color,
+                  margin: '0.4rem 0 0.2rem',
+                  letterSpacing: '-1px',
+                  textShadow: `0 0 40px ${badge.color}44`
+                }}>
                   {avgScore}%
                 </div>
-                <div style={{ fontSize: '1.5rem', color: '#ddd' }}>{badge.label}</div>
+                <div style={{
+                  fontSize: '1.1rem',
+                  color: '#bbb',
+                  letterSpacing: '3px',
+                  textTransform: 'uppercase',
+                  fontWeight: 600
+                }}>{badge.label}</div>
               </div>
 
-              <div style={{ display: 'flex', justifyContent: 'center', gap: '5rem', marginBottom: '3rem', flexWrap: 'wrap' }}>
-                <div style={{ textAlign: 'center' }}>
-                  <div style={{ fontSize: '2.8rem', color: '#66bb6a' }}>{result?.pronunciationScore || 0}%</div>
-                  <div style={{ color: '#aaa', fontSize: '1.1rem' }}>Pronunciation</div>
-                </div>
-                <div style={{ textAlign: 'center' }}>
-                  <div style={{ fontSize: '2.8rem', color: '#42a5f5' }}>{result?.understandingScore || 0}%</div>
-                  <div style={{ color: '#aaa', fontSize: '1.1rem' }}>Understanding</div>
-                </div>
+              {/* ── Score Gauges ── */}
+              <div style={{
+                display: 'flex',
+                justifyContent: 'center',
+                gap: '3rem',
+                marginBottom: '3rem',
+                flexWrap: 'wrap'
+              }}>
+                {[
+                  { label: 'Pronunciation', score: result?.pronunciationScore || 0, color: '#66bb6a', gradEnd: '#2e7d32' },
+                  { label: 'Understanding', score: result?.understandingScore || 0, color: '#42a5f5', gradEnd: '#1565c0' }
+                ].map(item => (
+                  <div key={item.label} style={{
+                    textAlign: 'center',
+                    background: 'rgba(255,255,255,0.04)',
+                    backdropFilter: 'blur(12px)',
+                    border: '1px solid rgba(255,255,255,0.08)',
+                    borderRadius: '20px',
+                    padding: '1.8rem 2.5rem',
+                    minWidth: '180px'
+                  }}>
+                    <div style={{ position: 'relative', width: '100px', height: '100px', margin: '0 auto 1rem' }}>
+                      <svg width="100" height="100" viewBox="0 0 100 100">
+                        <circle cx="50" cy="50" r="42" fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth="8" />
+                        <circle cx="50" cy="50" r="42" fill="none"
+                          stroke={item.color}
+                          strokeWidth="8"
+                          strokeLinecap="round"
+                          strokeDasharray={`${item.score * 2.64} 264`}
+                          transform="rotate(-90 50 50)"
+                          style={{ transition: 'stroke-dasharray 1s ease', filter: `drop-shadow(0 0 6px ${item.color}88)` }}
+                        />
+                      </svg>
+                      <div style={{
+                        position: 'absolute',
+                        top: '50%',
+                        left: '50%',
+                        transform: 'translate(-50%, -50%)',
+                        fontSize: '1.6rem',
+                        fontWeight: 800,
+                        color: item.color
+                      }}>{item.score}</div>
+                    </div>
+                    <div style={{ color: '#ccc', fontSize: '0.95rem', fontWeight: 500 }}>{item.label}</div>
+                  </div>
+                ))}
               </div>
 
+              {/* ── Gradient Divider ── */}
+              <div style={{
+                height: '1px',
+                background: 'linear-gradient(90deg, transparent, rgba(187,134,252,0.4), transparent)',
+                margin: '0 auto 2.5rem',
+                maxWidth: '500px'
+              }} />
+
+              {/* ── Feedback Cards ── */}
               {result?.pronunciationFeedback && (
-                <div style={{ background: 'rgba(102,187,106,0.08)', borderLeft: '6px solid #66bb6a', padding: '1.6rem', borderRadius: '10px', marginBottom: '2rem' }}>
-                  <h3 style={{ margin: '0 0 1rem', color: '#66bb6a', fontSize: '1.4rem' }}>Pronunciation Feedback</h3>
-                  <p style={{ margin: 0, lineHeight: 1.7 }}>{result.pronunciationFeedback}</p>
+                <div style={{
+                  background: 'rgba(102,187,106,0.06)',
+                  border: '1px solid rgba(102,187,106,0.2)',
+                  borderLeft: '5px solid #66bb6a',
+                  padding: '1.5rem 1.8rem',
+                  borderRadius: '14px',
+                  marginBottom: '1.5rem',
+                  backdropFilter: 'blur(8px)'
+                }}>
+                  <h3 style={{ margin: '0 0 0.8rem', color: '#66bb6a', fontSize: '1.15rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <span style={{ fontSize: '1.3rem' }}>🗣️</span> Pronunciation Feedback
+                  </h3>
+                  <p style={{ margin: 0, lineHeight: 1.75, color: '#d0e8d0', fontSize: '0.98rem' }}>{result.pronunciationFeedback}</p>
                 </div>
               )}
 
               {result?.understandingFeedback && (
-                <div style={{ background: 'rgba(66,165,245,0.08)', borderLeft: '6px solid #42a5f5', padding: '1.6rem', borderRadius: '10px', marginBottom: '2rem' }}>
-                  <h3 style={{ margin: '0 0 1rem', color: '#42a5f5', fontSize: '1.4rem' }}>Understanding Feedback</h3>
-                  <p style={{ margin: 0, lineHeight: 1.7 }}>{result.understandingFeedback}</p>
+                <div style={{
+                  background: 'rgba(66,165,245,0.06)',
+                  border: '1px solid rgba(66,165,245,0.2)',
+                  borderLeft: '5px solid #42a5f5',
+                  padding: '1.5rem 1.8rem',
+                  borderRadius: '14px',
+                  marginBottom: '1.5rem',
+                  backdropFilter: 'blur(8px)'
+                }}>
+                  <h3 style={{ margin: '0 0 0.8rem', color: '#42a5f5', fontSize: '1.15rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <span style={{ fontSize: '1.3rem' }}>🧠</span> Understanding Feedback
+                  </h3>
+                  <p style={{ margin: 0, lineHeight: 1.75, color: '#c0d8f0', fontSize: '0.98rem' }}>{result.understandingFeedback}</p>
                 </div>
               )}
 
+              {/* ── Transcription with Inline Corrections ── */}
               {result?.transcription && (
-                <div style={{ background: 'rgba(255,255,255,0.06)', padding: '1.6rem', borderRadius: '10px', marginBottom: '2rem' }}>
-                  <h3 style={{ margin: '0 0 1rem', color: '#e0d4ff', fontSize: '1.3rem' }}>Your Spoken Transcription</h3>
-                  <div style={{ lineHeight: 1.8, fontSize: '1.1rem' }}>
+                <div style={{
+                  background: 'rgba(255,255,255,0.04)',
+                  border: '1px solid rgba(255,255,255,0.08)',
+                  padding: '1.8rem',
+                  borderRadius: '16px',
+                  marginBottom: '2rem',
+                  marginTop: '1.5rem'
+                }}>
+                  <h3 style={{
+                    margin: '0 0 0.5rem',
+                    color: '#e0d4ff',
+                    fontSize: '1.15rem',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px'
+                  }}>
+                    <span style={{ fontSize: '1.2rem' }}>📝</span> Your Transcription
+                  </h3>
+                  <p style={{ margin: '0 0 1rem', color: '#888', fontSize: '0.82rem' }}>
+                    <span style={{ color: '#ff6b6b' }}>Red words</span> were mispronounced · <span style={{ color: '#7df3c0' }}>green badges</span> show the correct pronunciation
+                  </p>
+                  <div style={{
+                    lineHeight: 2.2,
+                    fontSize: '1.08rem',
+                    flexWrap: 'wrap',
+                    display: 'flex',
+                    alignItems: 'baseline'
+                  }}>
                     {renderHighlightedTranscription()}
                   </div>
                 </div>
               )}
 
+              {/* ── Mispronounced Word Cards ── */}
               {result?.mistakes?.length > 0 && (
-                <div>
-                  <h3 style={{ textAlign: 'center', color: '#ff6b6b', fontSize: '1.5rem', margin: '0 0 1.5rem' }}>
-                    Mispronounced Words – Let's Improve
-                  </h3>
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(340px, 1fr))', gap: '1.4rem' }}>
+                <div style={{ marginTop: '1rem' }}>
+                  <div style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '10px',
+                    marginBottom: '1.5rem'
+                  }}>
+                    <div style={{ flex: 1, height: '1px', background: 'linear-gradient(90deg, transparent, rgba(255,107,107,0.3))' }} />
+                    <h3 style={{ color: '#ff8a80', fontSize: '1.15rem', margin: 0, whiteSpace: 'nowrap' }}>
+                      ⚠️ Words to Practice ({result.mistakes.length})
+                    </h3>
+                    <div style={{ flex: 1, height: '1px', background: 'linear-gradient(270deg, transparent, rgba(255,107,107,0.3))' }} />
+                  </div>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '1rem' }}>
                     {result.mistakes.map((m, i) => (
                       <div key={i} style={{
-                        background: 'rgba(255,107,107,0.08)',
-                        border: '1px solid rgba(255,107,107,0.25)',
-                        borderLeft: '6px solid #ff6b6b',
-                        padding: '1.4rem',
-                        borderRadius: '10px'
-                      }}>
-                        <div style={{ fontSize: '1.3rem', fontWeight: 700, color: '#ffcccc', marginBottom: '0.8rem' }}>
-                          {m.word}
+                        background: 'rgba(255,107,107,0.05)',
+                        border: '1px solid rgba(255,107,107,0.15)',
+                        borderRadius: '14px',
+                        padding: '1.3rem 1.5rem',
+                        transition: 'transform 0.2s, border-color 0.2s',
+                        cursor: 'default'
+                      }}
+                      onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-3px)'; e.currentTarget.style.borderColor = 'rgba(255,107,107,0.4)'; }}
+                      onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.borderColor = 'rgba(255,107,107,0.15)'; }}
+                      >
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '0.9rem' }}>
+                          <span style={{
+                            fontSize: '1.5rem',
+                            fontWeight: 800,
+                            color: '#ffcccc',
+                            textDecoration: 'line-through',
+                            textDecorationColor: '#ff6b6b88'
+                          }}>
+                            {m.word}
+                          </span>
+                          <span style={{ color: '#555', fontSize: '1.2rem' }}>→</span>
+                          <span style={{
+                            fontSize: '1rem',
+                            color: '#7df3c0',
+                            fontWeight: 600,
+                            fontStyle: 'italic',
+                            background: 'rgba(125,243,192,0.1)',
+                            padding: '2px 10px',
+                            borderRadius: '99px',
+                            border: '1px solid rgba(125,243,192,0.25)'
+                          }}>
+                            {m.correct_pronunciation}
+                          </span>
                         </div>
-                        <div style={{ marginBottom: '0.5rem' }}>
-                          <span style={{ color: '#ff9999' }}>You said: </span><em>{m.user_pronunciation}</em>
+                        <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', marginBottom: '0.7rem' }}>
+                          <span style={{
+                            fontSize: '0.8rem',
+                            background: 'rgba(255,150,150,0.12)',
+                            color: '#ffaaaa',
+                            padding: '3px 10px',
+                            borderRadius: '6px'
+                          }}>You: {m.user_pronunciation}</span>
+                          {m.issue && <span style={{
+                            fontSize: '0.8rem',
+                            background: 'rgba(255,204,102,0.12)',
+                            color: '#ffcc66',
+                            padding: '3px 10px',
+                            borderRadius: '6px'
+                          }}>{m.issue}</span>}
                         </div>
-                        <div style={{ marginBottom: '0.5rem' }}>
-                          <span style={{ color: '#88ddff' }}>Correct: </span><em>{m.correct_pronunciation}</em>
-                        </div>
-                        <div style={{ color: '#ffcc66', margin: '0.8rem 0 0.5rem' }}>
-                          Issue: {m.issue}
-                        </div>
-                        <div style={{ color: '#aaffaa', lineHeight: 1.5 }}>
-                          💡 {m.how_to_correct}
-                        </div>
+                        {m.how_to_correct && (
+                          <div style={{
+                            color: '#b0b8c0',
+                            fontSize: '0.88rem',
+                            lineHeight: 1.55,
+                            borderTop: '1px solid rgba(255,255,255,0.06)',
+                            paddingTop: '0.6rem',
+                            marginTop: '0.3rem'
+                          }}>
+                            💡 {m.how_to_correct}
+                          </div>
+                        )}
                       </div>
                     ))}
                   </div>
@@ -458,20 +675,31 @@ const PronunciationJudge = () => {
                   <button
                     onClick={() => { setViewMode("practice"); setResult(null); setVideoEnded(true); }}
                     style={{
-                      padding: '1.2rem 3rem',
-                      fontSize: '1.3rem',
+                      padding: '1rem 2.8rem',
+                      fontSize: '1.15rem',
                       background: 'linear-gradient(135deg, #7c3aed, #ab47bc)',
                       color: 'white',
                       border: 'none',
                       borderRadius: '999px',
                       cursor: 'pointer',
-                      boxShadow: '0 12px 40px rgba(124,58,237,0.5)'
+                      boxShadow: '0 8px 32px rgba(124,58,237,0.45)',
+                      transition: 'transform 0.2s, box-shadow 0.2s'
                     }}
+                    onMouseEnter={e => { e.currentTarget.style.transform = 'scale(1.04)'; e.currentTarget.style.boxShadow = '0 12px 44px rgba(124,58,237,0.6)'; }}
+                    onMouseLeave={e => { e.currentTarget.style.transform = 'scale(1)'; e.currentTarget.style.boxShadow = '0 8px 32px rgba(124,58,237,0.45)'; }}
                   >
-                    Re-take Challenge
+                    🔄 Re-take Challenge
                   </button>
                 </div>
               )}
+
+              {/* Keyframes injected inline */}
+              <style>{`
+                @keyframes badgePulse {
+                  0%, 100% { transform: scale(1); }
+                  50% { transform: scale(1.06); }
+                }
+              `}</style>
             </div>
           ) : (
             <div style={{ textAlign: 'center', marginTop: '4rem' }}>

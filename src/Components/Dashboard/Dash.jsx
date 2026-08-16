@@ -167,7 +167,7 @@ const Debate = () => {
         }
 
         /* ── Avatar glow ring ── */
-        .avatar-container img {
+        .dsavatar-container img {
           border: 3px solid transparent !important;
           background: linear-gradient(#0a0014,#0a0014) padding-box,
                       linear-gradient(135deg,#a855f7,#6366f1,#e879f9) border-box !important;
@@ -277,7 +277,7 @@ const Debate = () => {
         <div className="debate-dashboard">
           <div className="dashboard-header">
             <div className="user-profile">
-              <div className="avatar-container">
+              <div className="dsavatar-container">
                 <img src={userData.avatar} alt="User Avatar" className="user-avatar" />
                 <div className="level-badge">{userData.level}</div>
               </div>
@@ -309,12 +309,12 @@ const Debate = () => {
                 <AreaChart data={performanceData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
                   <defs>
                     <linearGradient id="winGrad" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#34d399" stopOpacity={0.5}/>
-                      <stop offset="95%" stopColor="#34d399" stopOpacity={0}/>
+                      <stop offset="5%" stopColor="#34d399" stopOpacity={0.5} />
+                      <stop offset="95%" stopColor="#34d399" stopOpacity={0} />
                     </linearGradient>
                     <linearGradient id="lossGrad" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#f87171" stopOpacity={0.5}/>
-                      <stop offset="95%" stopColor="#f87171" stopOpacity={0}/>
+                      <stop offset="5%" stopColor="#f87171" stopOpacity={0.5} />
+                      <stop offset="95%" stopColor="#f87171" stopOpacity={0} />
                     </linearGradient>
                   </defs>
                   <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.06)" />

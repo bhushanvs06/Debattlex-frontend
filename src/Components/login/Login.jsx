@@ -2,6 +2,8 @@ import React, { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 import './Login.css';
+import { auth, googleProvider } from '../../config/firebase';
+import { signInWithPopup, signInWithRedirect, getRedirectResult, PhoneAuthProvider, linkWithCredential, RecaptchaVerifier, signInWithPhoneNumber } from 'firebase/auth';
 
 /* ─── tiny style injector (keyframes only) ─── */
 const injectKeyframes = () => {
@@ -151,51 +153,22 @@ const OrbitDots = () => (
   </div>
 );
 
-/* ─── Styled input (focus state only, no logic change) ─── */
-const Field = ({ type, placeholder, value, onChange, name, focused, setFocused }) => (
-  <div style={{ position: 'relative', marginBottom: 14 }}>
-    <input
-      type={type}
-      placeholder={placeholder}
-      value={value}
-      onChange={onChange}
-      onFocus={() => setFocused(name)}
-      onBlur={() => setFocused('')}
-      style={{
-        width: '100%', padding: '13px 18px',
-        borderRadius: 14,
-        border: `1px solid ${focused === name ? '#bc6cff' : 'rgba(255,255,255,0.08)'}`,
-        background: focused === name ? 'rgba(188,108,255,0.07)' : 'rgba(255,255,255,0.03)',
-        color: '#fff', fontSize: 15,
-        fontFamily: 'Inter, sans-serif',
-        outline: 'none', caretColor: '#bc6cff',
-        boxShadow: focused === name
-          ? '0 0 0 3px rgba(188,108,255,0.15), 0 4px 20px rgba(188,108,255,0.1)'
-          : 'none',
-        transition: 'border-color .3s, box-shadow .3s, background .3s',
-      }}
-    />
-    {/* animated bottom line */}
-    <div style={{
-      position: 'absolute', bottom: 0, left: '50%',
-      transform: 'translateX(-50%)',
-      height: 2, borderRadius: 999,
-      width: focused === name ? '70%' : '0%',
-      background: 'linear-gradient(90deg, transparent, #bc6cff, transparent)',
-      transition: 'width .4s cubic-bezier(.23,1,.32,1)',
-    }} />
-  </div>
-);
 
 /* ════════════════════════════════════════════════
    LOGIN PAGE  — zero logic changes below this line
 ════════════════════════════════════════════════ */
 const LoginPage = ({ onLoginSuccess }) => {
-  const [mode, setMode]               = useState('login');
-  const [email, setEmail]             = useState('');
-  const [password, setPassword]       = useState('');
-  const [displayName, setDisplayName] = useState('');
-  const [message, setMessage]         = useState('');
+  const [authMode, setAuthMode]                 = useState('google'); // 'google' | 'phone' | 'otp'
+  const [firebaseUser, setFirebaseUser]         = useState(null);
+  const [phoneNumber, setPhoneNumber]           = useState('');
+  const [countryCode, setCountryCode]           = useState('+91');
+  const [otpCode, setOtpCode]                   = useState('');
+  const [confirmationResult, setConfirmationResult] = useState(null);
+  
+  const [otpCountdown, setOtpCountdown]         = useState(0);
+  const [loading, setLoading]                   = useState(false);
+  const [errorMsg, setErrorMsg]                 = useState('');
+  const [successMsg, setSuccessMsg]             = useState('');
 
   // const url = 'https://debattlex.onrender.com'
   var url = process.env.React_App_url;
@@ -203,37 +176,234 @@ const LoginPage = ({ onLoginSuccess }) => {
 
   const navigate = useNavigate();
 
-  /* ── original handleSubmit — untouched ── */
-  const handleSubmit = async () => {
-    const endpoint = mode === 'signup' ? '/api/signup' : '/api/login';
-    const fullURL  = `${url}${endpoint}`;
-    const payload  = mode === 'signup'
-      ? { email, password, displayName }
-      : { email, password };
-
-    try {
-      const res = await axios.post(fullURL, payload);
-      console.log((url, `${endpoint} hiiii`));
-      setMessage(res.data.message);
-
-      if (res.data.user) {
-        localStorage.setItem("userEmail", res.data.user.email);
-        if (res.data.token) localStorage.setItem("token", res.data.token);
-        onLoginSuccess(res.data.user);
-        if (mode === 'signup') navigate('/list');
-      } else {
-        onLoginSuccess({ email });
+  // ReCAPTCHA cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (window.recaptchaVerifier) {
+        window.recaptchaVerifier.clear();
+        window.recaptchaVerifier = null;
       }
-    } catch (err) {
-      setMessage(err.response?.data?.error || 'Something went wrong');
+    };
+  }, []);
+
+  // Countdown timer for OTP
+  useEffect(() => {
+    let timer;
+    if (authMode === 'otp' && otpCountdown > 0) {
+      timer = setInterval(() => {
+        setOtpCountdown(prev => prev - 1);
+      }, 1000);
     }
-  };
+    return () => clearInterval(timer);
+  }, [authMode, otpCountdown]);
 
   /* visual-only states */
   useEffect(() => { injectKeyframes(); }, []);
-  const [btnHov, setBtnHov]       = useState(false);
-  const [switchHov, setSwitchHov] = useState(false);
-  const [focused, setFocused]     = useState('');
+  const [btnHov, setBtnHov] = useState(false);
+
+  // Check if Firebase is configured
+  const isFirebaseConfigured = !!process.env.REACT_APP_FIREBASE_API_KEY;
+
+  // Handle redirect result on mount
+  useEffect(() => {
+    const handleRedirect = async () => {
+      try {
+        const result = await getRedirectResult(auth);
+        if (result) {
+          setLoading(true);
+          const user = result.user;
+          const response = await axios.post(`${url}/api/check-google-user`, { email: user.email });
+          
+          if (response.data.exists) {
+            localStorage.setItem("userEmail", user.email);
+            if (response.data.token) {
+              localStorage.setItem("token", response.data.token);
+            }
+            onLoginSuccess(response.data.user || { email: user.email, displayName: user.displayName });
+            navigate('/overview');
+          } else {
+            setFirebaseUser(user);
+            setAuthMode('phone');
+          }
+        }
+      } catch (err) {
+        console.error("Google Redirect result error:", err);
+        setErrorMsg(err.message || "Failed to complete Google sign-in redirect");
+      } finally {
+        setLoading(false);
+      }
+    };
+    handleRedirect();
+  }, [navigate, onLoginSuccess, url]);
+
+  /* ── Google Sign-in Handler ── */
+  const handleGoogleSignIn = async () => {
+    setLoading(true);
+    setErrorMsg('');
+    setSuccessMsg('');
+    try {
+      const result = await signInWithPopup(auth, googleProvider);
+      const user = result.user;
+      
+      // Check if user exists in database
+      const response = await axios.post(`${url}/api/check-google-user`, { email: user.email });
+      
+      if (response.data.exists) {
+        // User exists: Login directly
+        localStorage.setItem("userEmail", user.email);
+        if (response.data.token) {
+          localStorage.setItem("token", response.data.token);
+        }
+        onLoginSuccess(response.data.user || { email: user.email, displayName: user.displayName });
+        navigate('/overview');
+      } else {
+        // New User: Prompt for phone verification
+        setFirebaseUser(user);
+        setAuthMode('phone');
+        setLoading(false);
+      }
+    } catch (err) {
+      console.warn("Google Popup Sign-in failed, trying redirect fallback:", err);
+      // Fallback to redirect if popup is blocked or environment restricts it
+      if (
+        err.code === 'auth/popup-blocked' ||
+        err.code === 'auth/popup-closed-by-user' ||
+        err.code === 'auth/operation-not-supported-in-this-environment' ||
+        err.code === 'auth/request-had-invalid-authentication-credentials'
+      ) {
+        try {
+          await signInWithRedirect(auth, googleProvider);
+        } catch (redirectErr) {
+          console.error("Google Redirect Sign-In error:", redirectErr);
+          setErrorMsg(redirectErr.message || "Failed to initiate redirect sign-in");
+          setLoading(false);
+        }
+      } else {
+        setErrorMsg(err.message || "Failed to sign in with Google");
+        setLoading(false);
+      }
+    }
+  };
+
+  /* ── Send Phone OTP Handler ── */
+  const handleSendOtp = async () => {
+    if (!phoneNumber || phoneNumber.length < 10) {
+      setErrorMsg("Please enter a valid 10-digit phone number");
+      return;
+    }
+    setLoading(true);
+    setErrorMsg('');
+    setSuccessMsg('');
+
+    const fullPhoneNumber = countryCode + phoneNumber.replace(/\D/g, '');
+
+    try {
+      // Always clear any previous verifier to avoid stale state
+      if (window.recaptchaVerifier) {
+        try { window.recaptchaVerifier.clear(); } catch (_) {}
+        window.recaptchaVerifier = null;
+      }
+
+      // Use 'normal' (visible) reCAPTCHA — renders inline in DOM, no popup/iframe needed.
+      // This completely avoids Cross-Origin-Opener-Policy blocking issues.
+      window.recaptchaVerifier = new RecaptchaVerifier(auth, 'recaptcha-container', {
+        size: 'normal',
+        callback: async (recaptchaToken) => {
+          // reCAPTCHA solved — now send the OTP
+          try {
+            const confirmation = await signInWithPhoneNumber(auth, fullPhoneNumber, window.recaptchaVerifier);
+            setConfirmationResult(confirmation);
+            setAuthMode('otp');
+            setOtpCountdown(60);
+            setSuccessMsg(`OTP code sent to ${fullPhoneNumber}`);
+          } catch (smsErr) {
+            console.error("Error sending OTP after reCAPTCHA:", smsErr);
+            let friendlyMessage = smsErr.message || "Failed to send OTP. Please try again.";
+            if (smsErr.code === 'auth/billing-not-enabled' || smsErr.message?.includes('BILLING_NOT_ENABLED')) {
+              friendlyMessage = "Firebase SMS billing is not enabled. For free local testing, add a Test Phone Number in Firebase Console → Authentication → Sign-in method → Phone.";
+            }
+            setErrorMsg(friendlyMessage);
+            if (window.recaptchaVerifier) {
+              try { window.recaptchaVerifier.clear(); } catch (_) {}
+              window.recaptchaVerifier = null;
+            }
+          } finally {
+            setLoading(false);
+          }
+        },
+        'expired-callback': () => {
+          setErrorMsg("reCAPTCHA expired. Please try again.");
+          setLoading(false);
+          if (window.recaptchaVerifier) {
+            try { window.recaptchaVerifier.clear(); } catch (_) {}
+            window.recaptchaVerifier = null;
+          }
+        }
+      });
+
+      // Render the widget into #recaptcha-container — user will see and solve it
+      await window.recaptchaVerifier.render();
+      // Loading stays true until the callback above resolves
+    } catch (err) {
+      console.error("Error initializing reCAPTCHA:", err);
+      let friendlyMessage = err.message || "Failed to start verification. Please try again.";
+      if (err.code === 'auth/billing-not-enabled' || err.message?.includes('BILLING_NOT_ENABLED')) {
+        friendlyMessage = "Firebase SMS billing is not enabled. For free local testing, add a Test Phone Number in Firebase Console → Authentication → Sign-in method → Phone.";
+      } else if (err.code === 'auth/missing-client-identifier' || err.code === 'auth/app-not-authorized') {
+        friendlyMessage = "Domain not authorized. Add localhost:3000 to Authorized Domains in Firebase Console → Authentication → Settings.";
+      }
+      setErrorMsg(friendlyMessage);
+      if (window.recaptchaVerifier) {
+        try { window.recaptchaVerifier.clear(); } catch (_) {}
+        window.recaptchaVerifier = null;
+      }
+      setLoading(false);
+    }
+  };
+
+  /* ── Verify Phone OTP & Complete Signup ── */
+  const handleVerifyOtp = async () => {
+    if (!otpCode || otpCode.length !== 6) {
+      setErrorMsg("Please enter the 6-digit verification code");
+      return;
+    }
+    setLoading(true);
+    setErrorMsg('');
+    setSuccessMsg('');
+
+    try {
+      // 1. Verify and link phone number to Google user
+      const credential = PhoneAuthProvider.credential(confirmationResult.verificationId, otpCode);
+      await linkWithCredential(firebaseUser, credential);
+
+      // 2. Retrieve verified idToken
+      const idToken = await firebaseUser.getIdToken(true);
+
+      // 3. Register user on backend
+      const res = await axios.post(`${url}/api/signup-google`, { idToken });
+
+      if (res.data.user) {
+        localStorage.setItem("userEmail", res.data.user.email);
+        if (res.data.token) {
+          localStorage.setItem("token", res.data.token);
+        }
+        onLoginSuccess(res.data.user);
+        navigate('/list');
+      } else {
+        setErrorMsg("Failed to register. Please try again.");
+      }
+    } catch (err) {
+      console.error("OTP verification failed:", err);
+      setErrorMsg(err.response?.data?.error || err.message || "Invalid OTP code. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleResendOtp = async () => {
+    if (otpCountdown > 0) return;
+    await handleSendOtp();
+  };
 
   return (
     <div className="login-page" style={{
@@ -323,107 +493,314 @@ const LoginPage = ({ onLoginSuccess }) => {
                   animation: 'dbxBlink 1.5s ease-in-out infinite',
                 }} />
                 <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: '.35em', textTransform: 'uppercase', color: '#d49eff' }}>
-                  {mode === 'signup' ? 'Create Account' : 'Welcome Back'}
+                  {authMode === 'google' ? 'Secure Login' : authMode === 'phone' ? 'Phone Verification' : 'Verify OTP'}
                 </span>
               </div>
 
-              {/* mode tab switcher — replaces plain h2 */}
-              <div style={{
-                display: 'flex', background: 'rgba(255,255,255,.04)',
-                borderRadius: 14, padding: 4, marginBottom: 28,
-                border: '1px solid rgba(255,255,255,.06)',
-              }}>
-                {['login', 'signup'].map(m => (
-                  <div key={m}
-                    onClick={() => { setMode(m); setMessage(''); }}
-                    style={{
-                      flex: 1, textAlign: 'center', padding: '10px 0',
-                      borderRadius: 11, cursor: 'pointer',
-                      fontSize: 13, fontWeight: 700,
-                      fontFamily: 'Inter, sans-serif',
-                      background: mode === m
-                        ? 'linear-gradient(135deg,#9d4edd,#5a189a)' : 'transparent',
-                      color: mode === m ? '#fff' : 'rgba(255,255,255,.3)',
-                      boxShadow: mode === m ? '0 4px 16px rgba(157,78,221,.35)' : 'none',
-                      transition: 'all .35s cubic-bezier(.23,1,.32,1)',
-                    }}>
-                    {m === 'login' ? '🔑 Login' : '✨ Sign Up'}
-                  </div>
-                ))}
-              </div>
-
-              {/* ── ORIGINAL INPUTS — same value/onChange ── */}
-              {mode === 'signup' && (
-                <Field type="text" placeholder="Full Name" value={displayName}
-                  onChange={e => setDisplayName(e.target.value)}
-                  name="name" focused={focused} setFocused={setFocused} />
+              {/* Error messages */}
+              {errorMsg && (
+                <div style={{
+                  color: '#ff6b6b',
+                  fontSize: 13,
+                  background: 'rgba(255, 107, 107, 0.12)',
+                  border: '1px solid rgba(255, 107, 107, 0.25)',
+                  padding: '10px 14px',
+                  borderRadius: 10,
+                  marginBottom: 20,
+                  textAlign: 'center',
+                  lineHeight: '1.4'
+                }}>
+                  ⚠️ {errorMsg}
+                </div>
               )}
 
-              <Field type="email" placeholder="Email" value={email}
-                onChange={e => setEmail(e.target.value)}
-                name="email" focused={focused} setFocused={setFocused} />
-
-              <Field type="password" placeholder="Password" value={password}
-                onChange={e => setPassword(e.target.value)}
-                name="password" focused={focused} setFocused={setFocused} />
-
-              {/* ── ORIGINAL BUTTON — same onClick={handleSubmit}, same text ── */}
-              <button
-                onClick={handleSubmit}
-                onMouseEnter={() => setBtnHov(true)}
-                onMouseLeave={() => setBtnHov(false)}
-                style={{
-                  width: '100%', padding: '14px',
-                  background: btnHov
-                    ? 'linear-gradient(135deg, #bc6cff, #7b2cbf)'
-                    : 'linear-gradient(135deg, #9d4edd, #5a189a)',
-                  color: 'white', fontWeight: 'bold', fontSize: 16,
-                  fontFamily: 'Inter, sans-serif',
-                  borderRadius: 14, border: 'none', cursor: 'pointer',
-                  marginBottom: 15,
-                  boxShadow: btnHov
-                    ? '0 8px 32px rgba(188,108,255,.5)'
-                    : '0 4px 20px rgba(157,78,221,.35)',
-                  transform: btnHov ? 'translateY(-2px)' : 'none',
-                  transition: 'background .3s, box-shadow .3s, transform .2s',
-                  position: 'relative', overflow: 'hidden',
-                }}>
-                {/* shimmer sweep on hover */}
+              {/* Success messages */}
+              {successMsg && (
                 <div style={{
-                  position: 'absolute', inset: 0,
-                  background: 'linear-gradient(90deg,transparent,rgba(255,255,255,.15),transparent)',
-                  animation: btnHov ? 'dbxSweep .6s ease' : 'none',
-                  pointerEvents: 'none',
-                }} />
-                <span style={{ position: 'relative', zIndex: 1 }}>
-                  {mode === 'signup' ? 'Create Account' : 'Login'}
-                </span>
-              </button>
+                  color: '#3ee86f',
+                  fontSize: 13,
+                  background: 'rgba(62, 232, 111, 0.12)',
+                  border: '1px solid rgba(62, 232, 111, 0.25)',
+                  padding: '10px 14px',
+                  borderRadius: 10,
+                  marginBottom: 20,
+                  textAlign: 'center'
+                }}>
+                  ✅ {successMsg}
+                </div>
+              )}
 
-              {/* ── ORIGINAL MESSAGE — same #3ee86f ── */}
-              <p style={{
-                color: '#3ee86f', margin: '10px 0', fontSize: 13,
-                minHeight: 20,
-                animation: message ? 'dbxSlide .3s ease' : 'none',
-              }}>{message}</p>
-
-              {/* ── ORIGINAL TOGGLE — same onClick ── */}
-              <p style={{ fontSize: 14, color: '#aaa' }}>
-                {mode === 'signup' ? 'Already have an account?' : "Don't have an account?"}{' '}
-                <button
-                  onClick={() => setMode(mode === 'signup' ? 'login' : 'signup')}
-                  onMouseEnter={() => setSwitchHov(true)}
-                  onMouseLeave={() => setSwitchHov(false)}
-                  style={{
-                    background: 'none', border: 'none',
-                    color: switchHov ? '#bc6cff' : '#76a9fa',
-                    cursor: 'pointer', fontWeight: 'bold',
-                    textDecoration: 'underline', padding: 0,
-                    transition: 'color .2s',
+              {/* Main Content Area */}
+              {!isFirebaseConfigured ? (
+                /* ── MISSING CONFIG WARNING ── */
+                <div style={{ color: '#ff6b6b', padding: '10px 0', textAlign: 'center' }}>
+                  <div style={{ fontSize: '2.5rem', marginBottom: 10 }}>⚠️</div>
+                  <h3 style={{ fontFamily: 'Syne, sans-serif', color: '#fff', marginBottom: 8, fontSize: 16 }}>Firebase Config Required</h3>
+                  <p style={{ fontSize: 12, color: '#aaa', lineHeight: 1.5, marginBottom: 15 }}>
+                    Please add your Firebase keys to the frontend <code>.env</code> file:
+                  </p>
+                  <div style={{
+                    background: 'rgba(0,0,0,0.4)',
+                    padding: '10px 14px',
+                    borderRadius: 10,
+                    textAlign: 'left',
+                    fontSize: 11,
+                    fontFamily: 'monospace',
+                    color: '#bc6cff',
+                    lineHeight: '1.6',
+                    overflowX: 'auto',
+                    border: '1px solid rgba(255,255,255,0.05)'
                   }}>
-                  {mode === 'signup' ? 'Login' : 'Sign Up'}
-                </button>
-              </p>
+                    REACT_APP_FIREBASE_API_KEY=...<br />
+                    REACT_APP_FIREBASE_AUTH_DOMAIN=...<br />
+                    REACT_APP_FIREBASE_PROJECT_ID=...
+                  </div>
+                  <p style={{ fontSize: 11, color: '#666', marginTop: 15 }}>
+                    Restart the React dev server after saving changes.
+                  </p>
+                </div>
+              ) : authMode === 'google' ? (
+                /* ── STEP 1: GOOGLE SIGN-IN ── */
+                <div>
+                  <button
+                    onClick={handleGoogleSignIn}
+                    disabled={loading}
+                    onMouseEnter={() => setBtnHov(true)}
+                    onMouseLeave={() => setBtnHov(false)}
+                    style={{
+                      width: '100%',
+                      padding: '15px 16px',
+                      background: btnHov
+                        ? 'linear-gradient(135deg, #4285F4, #357ae8)'
+                        : 'rgba(255,255,255,0.06)',
+                      color: 'white',
+                      fontWeight: 'bold',
+                      fontSize: 15,
+                      fontFamily: 'Inter, sans-serif',
+                      borderRadius: 14,
+                      border: '1px solid rgba(255,255,255,0.1)',
+                      cursor: loading ? 'not-allowed' : 'pointer',
+                      marginBottom: 20,
+                      boxShadow: btnHov
+                        ? '0 8px 32px rgba(66, 133, 244, 0.35)'
+                        : '0 4px 20px rgba(0,0,0,0.15)',
+                      transform: btnHov && !loading ? 'translateY(-2px)' : 'none',
+                      transition: 'all .3s cubic-bezier(.23,1,.32,1)',
+                      position: 'relative',
+                      overflow: 'hidden',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: 12
+                    }}
+                  >
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                      <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
+                      <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
+                      <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z" fill="#FBBC05"/>
+                      <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z" fill="#EA4335"/>
+                    </svg>
+                    <span style={{ position: 'relative', zIndex: 1 }}>
+                      {loading ? 'Processing...' : 'Sign in with Google'}
+                    </span>
+                  </button>
+                  <p style={{ fontSize: 13, color: '#999', lineHeight: 1.6, margin: '0 auto', maxWidth: '340px' }}>
+                    Sign in with Google to continue. New accounts will require a phone OTP verification step.
+                  </p>
+                </div>
+              ) : authMode === 'phone' ? (
+                /* ── STEP 2: PHONE INPUT ── */
+                <div>
+                  <p style={{ fontSize: 13, color: '#aaa', marginBottom: 20, lineHeight: '1.5' }}>
+                    A phone verification code will be sent to secure your new account.
+                  </p>
+                  
+                  <div style={{ display: 'flex', gap: 10, marginBottom: 20 }}>
+                    <select
+                      value={countryCode}
+                      onChange={e => setCountryCode(e.target.value)}
+                      style={{
+                        padding: '13px 14px',
+                        borderRadius: 14,
+                        border: '1px solid rgba(255,255,255,0.08)',
+                        background: 'rgba(255,255,255,0.04)',
+                        color: '#fff',
+                        fontSize: 15,
+                        fontFamily: 'Inter, sans-serif',
+                        outline: 'none',
+                        cursor: 'pointer'
+                      }}
+                    >
+                      <option value="+91" style={{ background: '#0e0026' }}>🇮🇳 +91</option>
+                      <option value="+1" style={{ background: '#0e0026' }}>🇺🇸 +1</option>
+                      <option value="+44" style={{ background: '#0e0026' }}>🇬🇧 +44</option>
+                      <option value="+61" style={{ background: '#0e0026' }}>🇦🇺 +61</option>
+                      <option value="+971" style={{ background: '#0e0026' }}>🇦🇪 +971</option>
+                    </select>
+                    
+                    <input
+                      type="tel"
+                      placeholder="Phone Number"
+                      value={phoneNumber}
+                      onChange={e => setPhoneNumber(e.target.value.replace(/\D/g, '').slice(0, 10))}
+                      style={{
+                        flex: 1,
+                        padding: '13px 18px',
+                        borderRadius: 14,
+                        border: '1px solid rgba(255,255,255,0.08)',
+                        background: 'rgba(255,255,255,0.03)',
+                        color: '#fff',
+                        fontSize: 15,
+                        fontFamily: 'Inter, sans-serif',
+                        outline: 'none',
+                        caretColor: '#bc6cff',
+                        boxShadow: 'none',
+                        transition: 'border-color .3s, background .3s'
+                      }}
+                    />
+                  </div>
+
+                  <button
+                    onClick={handleSendOtp}
+                    disabled={loading}
+                    onMouseEnter={() => setBtnHov(true)}
+                    onMouseLeave={() => setBtnHov(false)}
+                    style={{
+                      width: '100%',
+                      padding: '14px',
+                      background: btnHov
+                        ? 'linear-gradient(135deg, #bc6cff, #7b2cbf)'
+                        : 'linear-gradient(135deg, #9d4edd, #5a189a)',
+                      color: 'white',
+                      fontWeight: 'bold',
+                      fontSize: 15,
+                      fontFamily: 'Inter, sans-serif',
+                      borderRadius: 14,
+                      border: 'none',
+                      cursor: loading ? 'not-allowed' : 'pointer',
+                      marginBottom: 18,
+                      boxShadow: btnHov
+                        ? '0 8px 32px rgba(188,108,255,.5)'
+                        : '0 4px 20px rgba(157,78,221,.35)',
+                      transform: btnHov && !loading ? 'translateY(-2px)' : 'none',
+                      transition: 'all .3s ease'
+                    }}
+                  >
+                    {loading ? 'Sending Code...' : 'Send Verification Code'}
+                  </button>
+
+                  <button
+                    onClick={() => { setAuthMode('google'); setErrorMsg(''); setSuccessMsg(''); }}
+                    style={{
+                      background: 'none',
+                      border: 'none',
+                      color: '#76a9fa',
+                      cursor: 'pointer',
+                      fontSize: 13,
+                      fontWeight: 'bold',
+                      textDecoration: 'underline',
+                      padding: 0
+                    }}
+                  >
+                    Cancel
+                  </button>
+                </div>
+              ) : (
+                /* ── STEP 3: OTP VERIFICATION ── */
+                <div>
+                  <p style={{ fontSize: 13, color: '#aaa', marginBottom: 20 }}>
+                    Please enter the 6-digit code sent to your phone number.
+                  </p>
+
+                  <div style={{ marginBottom: 20 }}>
+                    <input
+                      type="text"
+                      maxLength="6"
+                      placeholder="••••••"
+                      value={otpCode}
+                      onChange={e => setOtpCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                      style={{
+                        width: '100%',
+                        padding: '14px 10px',
+                        textAlign: 'center',
+                        letterSpacing: otpCode ? '8px' : '4px',
+                        fontSize: '20px',
+                        fontWeight: 'bold',
+                        borderRadius: 14,
+                        border: '1px solid #bc6cff',
+                        background: 'rgba(188,108,255,0.07)',
+                        color: '#fff',
+                        outline: 'none',
+                        fontFamily: 'monospace'
+                      }}
+                    />
+                  </div>
+
+                  <button
+                    onClick={handleVerifyOtp}
+                    disabled={loading}
+                    onMouseEnter={() => setBtnHov(true)}
+                    onMouseLeave={() => setBtnHov(false)}
+                    style={{
+                      width: '100%',
+                      padding: '14px',
+                      background: btnHov
+                        ? 'linear-gradient(135deg, #bc6cff, #7b2cbf)'
+                        : 'linear-gradient(135deg, #9d4edd, #5a189a)',
+                      color: 'white',
+                      fontWeight: 'bold',
+                      fontSize: 15,
+                      fontFamily: 'Inter, sans-serif',
+                      borderRadius: 14,
+                      border: 'none',
+                      cursor: loading ? 'not-allowed' : 'pointer',
+                      marginBottom: 18,
+                      boxShadow: btnHov
+                        ? '0 8px 32px rgba(188,108,255,.5)'
+                        : '0 4px 20px rgba(157,78,221,.35)',
+                      transform: btnHov && !loading ? 'translateY(-2px)' : 'none',
+                      transition: 'all .3s ease'
+                    }}
+                  >
+                    {loading ? 'Creating Account...' : 'Verify & Create Account'}
+                  </button>
+
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, padding: '0 4px' }}>
+                    <button
+                      onClick={() => { setAuthMode('phone'); setErrorMsg(''); setSuccessMsg(''); }}
+                      style={{
+                        background: 'none',
+                        border: 'none',
+                        color: '#aaa',
+                        cursor: 'pointer',
+                        textDecoration: 'underline',
+                        padding: 0
+                      }}
+                    >
+                      Change Number
+                    </button>
+
+                    <button
+                      onClick={handleResendOtp}
+                      disabled={otpCountdown > 0 || loading}
+                      style={{
+                        background: 'none',
+                        border: 'none',
+                        color: otpCountdown > 0 ? '#555' : '#76a9fa',
+                        cursor: otpCountdown > 0 ? 'not-allowed' : 'pointer',
+                        fontWeight: 'bold',
+                        textDecoration: otpCountdown > 0 ? 'none' : 'underline',
+                        padding: 0
+                      }}
+                    >
+                      {otpCountdown > 0 ? `Resend in ${otpCountdown}s` : 'Resend Code'}
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* reCAPTCHA Container — visible widget renders here inline (no popup) */}
+              <div id="recaptcha-container" style={{ margin: '12px auto', display: 'flex', justifyContent: 'center' }}></div>
 
               {/* bottom accent */}
               <div style={{
@@ -432,7 +809,7 @@ const LoginPage = ({ onLoginSuccess }) => {
               }} />
               <div style={{
                 marginTop: 10, fontSize: 10, letterSpacing: '.25em',
-                textTransform: 'uppercase', color: 'rgba(255,255,255,.15)', fontWeight: 600,
+                textTransform: 'uppercase', color: 'rgba(255,255,255,0.15)', fontWeight: 600,
               }}>Train Your Voice. Build Your Power.</div>
 
             </div>

@@ -10,7 +10,6 @@ const TalkingAvatar = ({ textToSpeak }) => {
       speakText(textToSpeak);
     }
   }, [textToSpeak]);
-let text = 'hello bhushan you are great'
   const speakText = (text) => {
     const utterance = new SpeechSynthesisUtterance(text);
     utterance.rate = 1;
