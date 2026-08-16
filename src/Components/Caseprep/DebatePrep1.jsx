@@ -48,8 +48,7 @@ const DebatePrep1 = () => {
   const chatContainerRef = useRef(null);
   const navigate = useNavigate();
 
-  // const API_URL = 'https://debattlex.onrender.com';
-  var API_URL = process.env.React_App_url;
+  var API_URL = process.env.React_App_url || (window.location.hostname === 'localhost' ? 'http://localhost:5000' : 'https://debattlex-server-main.onrender.com');
   const email = localStorage.getItem('userEmail') || 'aniketsonone2908@gmail.com';
 
   const debouncedNotes = useDebounce(notes, 500);
@@ -119,61 +118,67 @@ const DebatePrep1 = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Dynamic teamMembers based on fetched data and userrole
+  // In British Parliamentary debate, speaking order within a team:
+  // Proposition: PM (1st), DPM (2nd), GW (3rd)
+  // Opposition: LO (1st), DLO (2nd), OW (3rd)
+  // The user always speaks at their assigned position, AI fills remaining slots.
   const teamMembers = debateData && userrole
     ? (() => {
         const isProposition = debateData.stance === 'proposition';
-        const propRoles = ['pm', 'dpm', 'gw'];
-        const oppRoles = ['lo', 'dlo', 'ow'];
-        const availableRoles = isProposition ? propRoles : oppRoles;
-        const remainingRoles = availableRoles.filter(role => role !== userrole.toLowerCase());
+        const orderedRoles = isProposition ? ['pm', 'dpm', 'gw'] : ['lo', 'dlo', 'ow'];
+        const userRoleLower = userrole.toLowerCase();
+        const userOrderIndex = orderedRoles.indexOf(userRoleLower); // 0, 1, or 2
+        const remainingRoles = orderedRoles.filter(r => r !== userRoleLower);
 
-        return {
-          user: {
-            name: 'You',
-            role: roleMap[userrole.toLowerCase()] || 'Leader of Opposition',
-            avatar: '👤',
-            color: '#3B82F6',
-            description: 'Opening arguments and case establishment'
-          },
-          teammate1: {
-            name: `AI ${roleMap[remainingRoles[0]]}`,
-            role: roleMap[remainingRoles[0]],
-            avatar: '👩‍💼',
-            color: '#10B981',
-            description: 'Rebuttals and case reinforcement'
-          },
-          teammate2: {
-            name: `AI ${roleMap[remainingRoles[1]]}`,
-            role: roleMap[remainingRoles[1]],
-            avatar: '👨‍💻',
-            color: '#8B5CF6',
-            description: 'Summary and final arguments'
+        // Build slots in speaking order
+        const slots = orderedRoles.map((role, idx) => {
+          const speakingPos = idx + 1;
+          if (role === userRoleLower) {
+            return {
+              key: 'user',
+              name: 'You',
+              role: roleMap[role] || role,
+              avatar: '👤',
+              color: '#3B82F6',
+              speakingOrder: speakingPos,
+              description: speakingPos === 1 ? 'Opening arguments and case establishment' : speakingPos === 2 ? 'Rebuttals and case reinforcement' : 'Summary and final arguments'
+            };
+          } else {
+            const aiIdx = remainingRoles.indexOf(role);
+            const avatars = ['👩‍💼', '👨‍💻'];
+            const colors = ['#10B981', '#8B5CF6'];
+            return {
+              key: aiIdx === 0 ? 'teammate1' : 'teammate2',
+              name: `AI ${roleMap[role] || role}`,
+              role: roleMap[role] || role,
+              avatar: avatars[aiIdx] || '🤖',
+              color: colors[aiIdx] || '#F59E0B',
+              speakingOrder: speakingPos,
+              description: speakingPos === 1 ? 'Opening arguments and case establishment' : speakingPos === 2 ? 'Rebuttals and case reinforcement' : 'Summary and final arguments'
+            };
           }
-        };
+        });
+
+        // Also expose by key for backwards-compat
+        const byKey = {};
+        slots.forEach(s => { byKey[s.key] = s; });
+        byKey.speakingOrder = slots; // full ordered array
+        return byKey;
       })()
     : {
         user: {
-          name: 'You',
-          role: 'Leader of Opposition',
-          avatar: '👤',
-          color: '#3B82F6',
+          name: 'You', role: 'Leader of Opposition', avatar: '👤', color: '#3B82F6', speakingOrder: 1,
           description: 'Opening arguments and case establishment'
         },
         teammate1: {
-          name: 'AI Deputy Leader of Opposition',
-          role: 'Deputy Leader of Opposition',
-          avatar: '👩‍💼',
-          color: '#10B981',
+          name: 'AI Deputy Leader of Opposition', role: 'Deputy Leader of Opposition', avatar: '👩‍💼', color: '#10B981', speakingOrder: 2,
           description: 'Rebuttals and case reinforcement'
         },
         teammate2: {
-          name: 'AI Opposition Whip',
-          role: 'Opposition Whip',
-          avatar: '👨‍💻',
-          color: '#8B5CF6',
+          name: 'AI Opposition Whip', role: 'Opposition Whip', avatar: '👨‍💻', color: '#8B5CF6', speakingOrder: 3,
           description: 'Summary and final arguments'
-        }
+        },
+        speakingOrder: null
       };
 
   // Deleted unused memoizedSummaryHighlights
@@ -469,15 +474,13 @@ const DebatePrep1 = () => {
         simulateAIResponses(sanitizedText);
       };
       recognition.onerror = (event) => {
-        setTranscript(prev => [...prev, {
-          from: 'System',
-          role: 'Error',
-          avatar: '⚠️',
-          text: `Speech recognition error: ${event.error}`,
-          timestamp: new Date().toLocaleTimeString(),
-          type: 'system',
-          color: '#EF4444'
-        }]);
+        if (event.error === 'no-speech') return; // ignore
+        if (event.error === 'network') {
+          // Network hiccups are common — don't spam the chat with errors
+          console.warn('SR network error, will retry...');
+          return;
+        }
+        console.error('Speech recognition error:', event.error);
       };
 
       recognition.start();
@@ -717,13 +720,22 @@ const DebatePrep1 = () => {
     transition: 'all 0.3s ease'
   });
 
-  // Display all team members' roles and teams
+  // Speaking order panel — ordered by debate position
+  const speakingOrderSlots = teamMembers.speakingOrder || [
+    { ...teamMembers.user, key: 'user' },
+    { ...teamMembers.teammate1, key: 'teammate1' },
+    { ...teamMembers.teammate2, key: 'teammate2' },
+  ];
+
   const allMembers = debateData
-    ? [
-        { name: 'You', role: roleMap[userrole.toLowerCase()] || 'Leader of Opposition', team: debateData.stance },
-        { name: teamMembers.teammate1.name, role: teamMembers.teammate1.role, team: debateData.stance },
-        { name: teamMembers.teammate2.name, role: teamMembers.teammate2.role, team: debateData.stance }
-      ]
+    ? speakingOrderSlots.map(m => ({
+        name: m.name,
+        role: m.role,
+        team: debateData.stance,
+        speakingOrder: m.speakingOrder,
+        avatar: m.avatar,
+        color: m.color
+      }))
     : [];
 
   return (
@@ -912,14 +924,62 @@ const DebatePrep1 = () => {
 
             {allMembers.length > 0 && (
               <div className="all-members">
-                <h3>All Team Members</h3>
-                <ul>
+                <h3>🎙️ Speaking Order</h3>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginTop: '10px' }}>
                   {allMembers.map((member, index) => (
-                    <li key={index}>
-                      {member.name} - {member.role} ({member.team.charAt(0).toUpperCase() + member.team.slice(1)})
-                    </li>
+                    <div
+                      key={index}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '12px',
+                        padding: '10px 14px',
+                        borderRadius: '12px',
+                        background: member.key === 'user' || member.name === 'You'
+                          ? 'rgba(59,130,246,0.12)' : 'rgba(255,255,255,0.04)',
+                        border: `1.5px solid ${member.color}44`,
+                        position: 'relative'
+                      }}
+                    >
+                      {/* Speaking order badge */}
+                      <div style={{
+                        minWidth: '26px', height: '26px', borderRadius: '50%',
+                        background: member.color, color: '#fff',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        fontWeight: 800, fontSize: '13px', boxShadow: `0 2px 8px ${member.color}66`
+                      }}>
+                        {member.speakingOrder}
+                      </div>
+                      {/* Avatar */}
+                      <div style={{
+                        width: '36px', height: '36px', borderRadius: '50%',
+                        border: `2px solid ${member.color}`,
+                        background: `linear-gradient(135deg, ${member.color}22, ${member.color}44)`,
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        fontSize: '18px', flexShrink: 0
+                      }}>
+                        {member.avatar}
+                      </div>
+                      {/* Info */}
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontWeight: 700, fontSize: '13px', color: member.color, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                          {member.name}
+                        </div>
+                        <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.55)', marginTop: '1px' }}>
+                          {member.role}
+                        </div>
+                      </div>
+                      {/* You badge */}
+                      {(member.name === 'You') && (
+                        <div style={{
+                          fontSize: '10px', fontWeight: 700, padding: '2px 8px',
+                          borderRadius: '20px', background: member.color, color: '#fff',
+                          flexShrink: 0
+                        }}>YOU</div>
+                      )}
+                    </div>
                   ))}
-                </ul>
+                </div>
               </div>
             )}
           </div>
