@@ -158,18 +158,32 @@ const Mentor = () => {
       setUserCaption((accumulatedRef.current + interim).trim());
     };
 
-    // Auto-restart recognition if it stops while mic is still ON
-    rec.onend = () => {
-      if (isMounted.current && recognitionRef.current === rec) {
-        // Only restart if we haven't stopped intentionally
-        // We signal intentional stop by setting recognitionRef.current = null first
-        try { rec.start(); } catch (_) { }
+    let pendingRestart = false;
+
+    rec.onerror = (e) => {
+      if (e.error === 'no-speech') return;
+      console.warn('Recognition error:', e.error);
+      if (e.error === 'network') {
+        // Chrome needs a pause before restarting after a network error
+        pendingRestart = true;
       }
     };
 
-    rec.onerror = (e) => {
-      if (e.error === 'no-speech') return; // ignore — will auto-restart
-      console.warn('Recognition error:', e.error);
+    // Auto-restart recognition if it stops while mic is still ON
+    rec.onend = () => {
+      if (isMounted.current && recognitionRef.current === rec) {
+        if (pendingRestart) {
+          pendingRestart = false;
+          // Wait 2s before retrying after a network error
+          setTimeout(() => {
+            if (isMounted.current && recognitionRef.current === rec) {
+              try { rec.start(); } catch (_) { }
+            }
+          }, 2000);
+        } else {
+          try { rec.start(); } catch (_) { }
+        }
+      }
     };
 
     return rec;

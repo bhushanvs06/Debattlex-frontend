@@ -488,6 +488,7 @@ const DebateUI = () => {
         console.warn("Recognition already started");
       }
       let fullTranscript = '';
+      let pendingRestart = false;
 
       recognition.onresult = (event) => {
         let interim = '';
@@ -508,22 +509,24 @@ const DebateUI = () => {
       };
 
       recognition.onerror = (err) => {
-        if (err.error === 'no-speech') return; // ignore, will auto-restart via onend
+        if (err.error === 'no-speech') return;
         console.warn("Speech recognition error:", err.error);
-        // On network error, wait briefly and restart rather than stopping completely
-        if (err.error === 'network') {
-          setTimeout(() => {
-            if (isUserTurn && debateStarted && recognitionRef.current === recognition) {
-              try { recognition.start(); } catch (_) {}
-            }
-          }, 1000);
-        }
+        if (err.error === 'network') { pendingRestart = true; }
       };
 
       recognition.onend = () => {
         // Auto-restart during user's turn so voice input is continuous
         if (isUserTurn && debateStarted && recognitionRef.current === recognition) {
-          try { recognition.start(); } catch (_) {}
+          if (pendingRestart) {
+            pendingRestart = false;
+            setTimeout(() => {
+              if (isUserTurn && debateStarted && recognitionRef.current === recognition) {
+                try { recognition.start(); } catch (_) {}
+              }
+            }, 2000);
+          } else {
+            try { recognition.start(); } catch (_) {}
+          }
         }
       };
     } else {

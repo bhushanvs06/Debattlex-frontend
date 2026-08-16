@@ -419,6 +419,7 @@ const Arina = () => {
     rec.continuous = true; rec.interimResults = true; rec.lang = 'en-US';
     recognitionRef.current = rec;
     let finalAccum = '';
+    let pendingRestart = false;
     rec.onresult = event => {
       let final = '', interim = '';
       for (let i = event.resultIndex; i < event.results.length; i++) {
@@ -432,21 +433,23 @@ const Arina = () => {
       setUserCaption((finalAccum + interim).trim());
     };
     rec.onerror = (e) => {
-      if (e.error === 'no-speech') return; // ignore — will auto-restart
+      if (e.error === 'no-speech') return;
       console.warn('SR error:', e.error);
-      // For network errors, try restarting after a short delay
-      if (e.error === 'network') {
-        setTimeout(() => {
-          if (!isMuted && recognitionRef.current === rec) {
-            try { rec.start(); } catch (_) {}
-          }
-        }, 1000);
-      }
+      if (e.error === 'network') { pendingRestart = true; }
     };
     rec.onend = () => {
       // Auto-restart if still unmuted (handles browser auto-stop)
       if (!isMuted && recognitionRef.current === rec) {
-        try { rec.start(); } catch(e) {}
+        if (pendingRestart) {
+          pendingRestart = false;
+          setTimeout(() => {
+            if (!isMuted && recognitionRef.current === rec) {
+              try { rec.start(); } catch(e) {}
+            }
+          }, 2000);
+        } else {
+          try { rec.start(); } catch(e) {}
+        }
       }
     };
     try { rec.start(); } catch(e) { console.warn('SR start failed:', e); }
