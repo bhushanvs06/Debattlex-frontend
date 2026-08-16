@@ -260,6 +260,7 @@ const Mentor = () => {
       });
       const aiText = (aiRes.data.response || '')
         .replace(/<think>[\s\S]*?<\/think>/gi, '')
+        .replace(/<think>[\s\S]*/gi, '')
         .replace(/[*#]/g, '')
         .trim();
 
